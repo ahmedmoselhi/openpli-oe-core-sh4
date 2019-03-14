@@ -5,6 +5,8 @@ PACKAGECONFIG = ""
 
 SRC_URI += "file://smbnetfs.common.conf file://smbnetfs.user.conf file://init"
 
+SRC_URI_remove_sh4 += "file://Using-PKG_CHECK_MODULES-to-found-headers-and-libraries.patch"
+
 FILES_${PN} += "${sysconfdir}/*.conf ${sysconfdir}/init.d"
 CONFFILES_${PN} = "${sysconfdir}/smbnetfs.user.conf"
 inherit update-rc.d
