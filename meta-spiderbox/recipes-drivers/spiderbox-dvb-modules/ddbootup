@@ -1,0 +1,29 @@
+#!/bin/sh
+
+if [ ! -e /etc/lircd.conf ] ; then
+	echo "lircd.conf missing!"
+	touch /etc/lircd.conf
+fi
+
+# Create display device if not present
+if [ -e /dev/dbox/oled0 ] ; then
+	ln -s /dev/dbox/oled0 /dev/vfd
+fi
+
+# Create hdmi cec device
+if [ ! -e /dev/hdmi_cec ] ; then
+        /bin/mknod /dev/hdmi_cec c 149 0
+fi
+
+# Flush eth0 device which is set by kernel cmdline
+ip addr flush dev eth0 scope global
+
+if [ ! -e /boot/audio.elf ] ; then
+	echo "Audio firmware missing!"
+	echo "Audio FW missing!" > /dev/vfd
+fi
+
+if [ ! -e /boot/video.elf ] ; then
+	echo "Video firmware missing!"
+	echo "Video FW missing!" > /dev/vfd
+fi
