@@ -1,2 +1,2 @@
 # meta-spiderbox
-Spiderbox BSP layer for OpenPli
+SH4 BSP layer for OpenPli
