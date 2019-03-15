@@ -5,6 +5,10 @@
 RDEPENDS_${PN}-client_remove = "bash"
 RDEPENDS_${PN}_remove = "bash"
 
+SRC_URI_append_sh4 = " \
+           file://fix-ipv6-redefination-on-old-linux.patch \
+"
+
 # The startup script does a check that doesn't work, replace it. It's
 # also overly complex, so simplified it too.
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
