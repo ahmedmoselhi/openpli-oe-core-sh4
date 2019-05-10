@@ -53,7 +53,11 @@ KERNEL_IMAGETYPE = "uImage"
 IMAGE_CMD_tar_prepend = "\
     cp ${DEPLOY_DIR_IMAGE}/uImage ${IMAGE_ROOTFS}/boot/${KERNEL_FILE}; \
     "
-	
+
+MACHINE_EXTRA_RRECOMMENDS += "\
+    enigma2-plugin-systemplugins-serviceapp \
+    "
+
 MACHINE_ESSENTIAL_EXTRA_RDEPENDS += "\
     stlirc \
     stlinux24-sh4-stx7109-fdma-firmware \
