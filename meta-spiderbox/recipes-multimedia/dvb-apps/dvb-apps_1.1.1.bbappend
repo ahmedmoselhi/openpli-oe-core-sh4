@@ -1,15 +1,4 @@
+
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
-inherit gitpkgv
-SRCREV = "${AUTOREV}"
-PKGV = "${GITPKGVTAG}"
-
-S = "${WORKDIR}/git"
-
-
-SRC_URI = " \
-            git://github.com/atvcaptain/dvb-apps.git \
-            git://linuxtv.org/git/dtv-scan-tables.git;protocol=http;destsuffix=git/initial-scan-tables;name=scantables \
-            file://util-DVBC_ANNEX_AC.patch \
-"
- 
+SRC_URI_append_sh4 += " file://util-DVBC_ANNEX_AC.patch"
