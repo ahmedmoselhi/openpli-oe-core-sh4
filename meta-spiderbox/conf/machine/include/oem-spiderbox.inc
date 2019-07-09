@@ -1,6 +1,6 @@
 # We know about rtc
 include conf/machine/include/build-extras.inc
-#require conf/machine/include/wifi-sh4.inc
+require conf/machine/include/wifi-sh4.inc
 
 BRAND_OEM = "spiderbox"
 

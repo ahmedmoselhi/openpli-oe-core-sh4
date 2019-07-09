@@ -4,8 +4,6 @@ MACHINE_ESSENTIAL_EXTRA_RRECOMMENDS += "\
 	firmware-htc9271 \
 	firmware-mt7601u \
 	firmware-rt2870 \
-	firmware-rt73 \
-	firmware-rt3070 \
 	firmware-rtl8188eu \
 	firmware-rtl8192cu \
 	firmware-rtl8712u \
