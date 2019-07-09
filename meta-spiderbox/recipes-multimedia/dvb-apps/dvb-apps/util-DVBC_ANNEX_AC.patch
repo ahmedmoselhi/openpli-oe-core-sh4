@@ -1,10 +1,21 @@
---- a/util/szap/util.c	2016-06-21 17:34:42.003391451 +0200
-+++ b/util/szap/util.c	2016-06-21 18:02:37.587444831 +0200
-@@ -190,8 +190,12 @@
+--- a/util/szap/util.c	2019-07-09 18:46:47.000000000 +0300
++++ b/util/szap/util.c	2019-07-09 19:32:25.603975468 +0300
+@@ -181,17 +181,23 @@
+ 	case SYS_DSS:
+ 	case SYS_DVBS:
+ 	case SYS_DVBS2:
++#if DVB_API_VERSION > 5 || DVB_API_VERSION == 5 && DVB_API_VERSION_MINOR >= 6
+ 	case SYS_TURBO:
+ 		*type = FE_QPSK;
+ 		break;
++#endif
+ 	case SYS_DVBT:
+ 	case SYS_DVBT2:
+ 	case SYS_DVBH:
  	case SYS_ISDBT:
  		*type = FE_OFDM;
  		break;
-+#ifdef SYS_DVBC_ANNEX_A
++#if DVB_API_VERSION > 5 || DVB_API_VERSION == 5 && DVB_API_VERSION_MINOR >= 6
  	case SYS_DVBC_ANNEX_A:
  	case SYS_DVBC_ANNEX_C:
 +#else
@@ -13,7 +24,7 @@
  		*type = FE_QAM;
  		break;
  	case SYS_ATSC:
-@@ -259,7 +263,11 @@
+@@ -259,7 +265,11 @@
  
  int dvbfe_enum_delsys(int fd, uint32_t *len, uint8_t *data)
  {
@@ -31,7 +42,7 @@
  		close(fe_fd);
  		return -1;
  	}
-+#ifdef SYS_DVBC_ANNEX_A
++#if DVB_API_VERSION > 5 || DVB_API_VERSION == 5 && DVB_API_VERSION_MINOR >= 6
  	ret = dvbfe_set_delsys(fe_fd, SYS_DVBC_ANNEX_A);
 +#else
 +	ret = dvbfe_set_delsys(fe_fd, SYS_DVBC_ANNEX_AC);
