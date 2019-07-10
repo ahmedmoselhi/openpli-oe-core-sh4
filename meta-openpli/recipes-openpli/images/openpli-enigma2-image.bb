@@ -18,25 +18,11 @@ KERNEL_WIFI_DRIVERS = " \
 	kernel-module-rtl8187 \
 	kernel-module-zd1211rw \
 	"
-KERNEL_WIFI_DRIVERS_remove_sh4 += "\
-	kernel-module-ath9k-htc \
-	kernel-module-carl9170 \
-	kernel-module-r8712u \
-	kernel-module-rt2500usb \
-	kernel-module-rt2800usb \
-	kernel-module-rt2x00usb \
-	kernel-module-rt2x00lib \
-	kernel-module-rt73usb \
-	"
 
 EXTRA_KERNEL_WIFI_DRIVERS = " \
 	firmware-rtl8192cu \
 	firmware-rtl8188eu \
 	\
-	kernel-module-r8188eu \
-	kernel-module-rtl8192cu \
-	"
-EXTRA_KERNEL_WIFI_DRIVERS_remove_sh4 += "\
 	kernel-module-r8188eu \
 	kernel-module-rtl8192cu \
 	"
@@ -100,6 +86,7 @@ IMAGE_INSTALL += " \
 	\
 	${@bb.utils.contains_any('MACHINE', 'vuuno vuduo vuultimo vusolo vusolo2 vuduo2 vusolose vuzero vuuno4k vuuno4kse vuzero4k vuultimo4k vusolo4k vuduo4k', 'vuplus-tuner-turbo', '', d)} \
 	\
+	${@bb.utils.contains("MACHINE_FEATURES", "chromium", "enigma2-plugin-extensions-chromium", "", d)} \
 	${@bb.utils.contains("MACHINE_FEATURES", "transcoding", "enigma2-plugin-systemplugins-transcodingsetup", "", d)} \
 	${@bb.utils.contains("MACHINE_FEATURES", "streamproxy", "streamproxy", "", d)} \
 	${@bb.utils.contains('MACHINE_FEATURES', 'ctrlrc', "enigma2-plugin-systemplugins-remotecontrolcode", "", d)} \
