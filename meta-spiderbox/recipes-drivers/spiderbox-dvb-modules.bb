@@ -25,19 +25,11 @@ PTI_NP_PATH ?= "/data/pti_np"
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
 SRC_URI = "\
-    git://github.com/Duckbox-Developers/driver.git;protocol=git \
-    file://COPYING \
-    file://ddbootup \
+    git://github.com/OpenVisionE2/sh4-driver.git;protocol=git \
     file://modules.conf \
     file://modules-conf.conf \
-    file://vdstandby \
-    file://vdstandby.cfg \
 " 
-SRC_URI_append_hl101 += "\
-    file://makefile_stmfb.patch \
-    file://proton.patch \
-    file://pti_np.patch \
-"
+
 FILES_${PN} = "${sysconfdir}/init.d ${sysconfdir}/rcS.d ${sysconfdir}/modules-load.d ${sysconfdir}/modprobe.d /bin /etc"
 FILES = ""
 
@@ -117,12 +109,12 @@ do_install() {
     install -m 644 ${WORKDIR}/modules-conf.conf ${D}/${sysconfdir}/modprobe.d/_${MACHINE}.conf
     install -d ${D}/${sysconfdir}/init.d
     install -d ${D}/${sysconfdir}/rcS.d
-    install -m 0755 ${WORKDIR}/ddbootup ${D}${sysconfdir}/init.d
-    ln -sf ../init.d/ddbootup ${D}${sysconfdir}/rcS.d/S04ddbootup
+    install -m 0755 ${S}/ddbootup ${D}${sysconfdir}/init.d
+    ln -sf ../init.d/ddbootup ${D}${sysconfdir}/rcS.d/S01ddbootup
     install -d ${D}/bin
-    install -m 755 ${WORKDIR}/vdstandby ${D}/bin
+    install -m 755 ${S}/vdstandby ${D}/bin
     install -d ${D}/etc
-    install -m 644 ${WORKDIR}/vdstandby.cfg ${D}/etc
+    install -m 644 ${S}/vdstandby.cfg ${D}/etc
 
     # if no pti_np sources are available and a custom pti.ko is present, overwrite the SH4 one
     if [ ! -e ${PTI_NP_PATH}/Makefile ]; then
