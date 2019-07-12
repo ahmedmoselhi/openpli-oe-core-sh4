@@ -35,9 +35,7 @@ LINUX_VERSION = "2.6.32.71"
 SRC_URI = "https://github.com/OpenVisionE2/linux-sh4-2.6.32.71/archive/stmicro.tar.gz \
     file://defconfig \
     file://st-coprocessor.h \
-"
-
-SRC_URI_append_hl101 += "\
+    \
     file://linux-sh4-${MACHINE}_setup_stm24_${STM_PATCH_STR}.patch \
     file://linux-usbwait123_stm24.patch \
     file://linux-sh4-stmmac_stm24_${STM_PATCH_STR}.patch \
