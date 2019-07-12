@@ -41,7 +41,7 @@ SERIAL_CONSOLE = "115200 ttyAS0"
 
 DVBPROVIDER = "kernel"
 
-MACHINE_FEATURES += "alsa ext2 serial switchoff textlcd spiderbox singlecore legacykernel usbconsole"
+MACHINE_FEATURES += "ext2 serial switchoff textlcd spiderbox singlecore legacykernel usbconsole wlan"
 DISTRO_FEATURES_append += "libsigc2"
 
 DVBMEDIASINK_CONFIG = "--with-wma --with-wmv --with-pcm --with-eac3"
