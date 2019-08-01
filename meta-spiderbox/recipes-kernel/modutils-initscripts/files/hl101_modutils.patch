@@ -4,7 +4,7 @@
  		[ "$VERBOSE" != no ] && echo -n "$module "
  		eval "$LOAD_MODULE $module $args >/dev/null 2>&1"
  		loaded_modules="${loaded_modules}${module} "
-+		[ "$module" == "proton" ] && echo "LOAD" > /dev/vfd #&& mkdir -p /dev/dbox && ln -s /dev/vfd /dev/dbox/oled0
++		[ "$module" == "aotom" ] && mknod -m 0660 /dev/vfd c 147 0 && echo "LOAD" > /dev/vfd
  	done
  }
  
