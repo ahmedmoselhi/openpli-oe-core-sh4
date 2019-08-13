@@ -4,7 +4,7 @@
  		[ "$VERBOSE" != no ] && echo -n "$module "
  		eval "$LOAD_MODULE $module $args >/dev/null 2>&1"
  		loaded_modules="${loaded_modules}${module} "
-+		[ "$module" == "aotom" ] && mknod -m 0660 /dev/vfd c 147 0 && echo "LOAD" > /dev/vfd
++		[ "$module" == "aotom" ] && echo "LOADING MODULES" > /dev/dbox/oled0
  	done
  }
  
@@ -16,13 +16,13 @@
 + 
 +NUM=`grep SwapTotal /proc/meminfo | sed 's/[^0-9]//g'`
 +if [ "$NUM" = 0 ]; then
-+	echo "Wait 1m." > /dev/vfd
++	echo "Wait 1m." > /dev/dbox/oled0
 +	dd if=/dev/zero of=/swapfile bs=1024 count=131072
 +	mkswap /swapfile > /dev/null
 +	swapon /swapfile > /dev/null
 +	echo -e '/swapfile swap swap defaults 00' >> /etc/fstab
 +else
-+	echo "swap on" > /dev/vfd
++	echo "LOADING ENIGMA2" > /dev/dbox/oled0
 +fi
 +
  exit 0
