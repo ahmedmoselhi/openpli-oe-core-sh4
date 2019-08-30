@@ -87,6 +87,7 @@ OPTIONAL_PACKAGES += " \
 	python-iso639 \
 	picocom \
 	ppp \
+	${@bb.utils.contains('TARGET_FPU', 'soft', '', 'rclone', d)} \
 	rsync \
 	rtorrent \
 	rtl8723a \
