@@ -4,9 +4,6 @@ require conf/machine/include/wifi-sh4.inc
 
 BRAND_OEM = "spiderbox"
 
-ROOTFS_FILE = "root.img"
-KERNEL_FILE = "uImage"
-
 IMAGE_FSTYPES += "tar.gz"
 
 AUDIOELF = "audio_7100.elf"
