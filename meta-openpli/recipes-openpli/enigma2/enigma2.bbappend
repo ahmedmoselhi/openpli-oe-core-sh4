@@ -6,7 +6,6 @@ DEPENDS_append_sh4 += "\
 
 RDEPENDS_${PN}_append_sh4 += "\
 	libmme-host \
-	alsa-utils-amixer-conf \
 	"
 
 EXTRA_OECONF_sh4 = "\

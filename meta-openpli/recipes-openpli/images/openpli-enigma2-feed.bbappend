@@ -13,6 +13,7 @@ OPTIONAL_PACKAGES_remove_sh4 += "\
 	firmware-rtl8723bu \
 	gdb \
 	nodejs \
+	rclone \
 	rtl8188eu \
 	rtl8189es \
 	rtl8192eu \
