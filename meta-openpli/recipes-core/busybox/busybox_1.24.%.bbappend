@@ -47,6 +47,10 @@ pkg_prerm_${PN}_append () {
 	ln -s ${base_bindir}/busybox $tmpdir/wget
 }
 
+do_configure_prepend_sh4() {
+	sed -i 's/^# CONFIG_FEATURE_SWAPON_PRI is not set/CONFIG_FEATURE_SWAPON_PRI=y/g' ${WORKDIR}/defconfig
+}
+
 do_install_append() {
 	if grep -q "CONFIG_CRONTAB=y" ${WORKDIR}/defconfig; then
 		install -d ${D}${sysconfdir}/cron/crontabs
