@@ -75,7 +75,7 @@ MACHINE_EXTRA_RDEPENDS += "\
     libpcre \
     "
 
-MACHINE_FEATURES += "modutils-${BRAND_OEM}"
+MACHINE_FEATURES += "modutils-cuberevo"
 
 include conf/machine/include/autoload-filesystems.inc
 require conf/machine/include/tune-sh4.inc
