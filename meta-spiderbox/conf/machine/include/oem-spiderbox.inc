@@ -11,8 +11,6 @@ VIDEOELF = "video_7109.elf"
 
 SOC_FAMILY = "sti7109"
 
-IMAGEDIR ?= "enigma2"
-
 KERNEL_MODULE_PACKAGE_SUFFIX = ""
 
 MACHINE_KERNEL_PR = "r1"
