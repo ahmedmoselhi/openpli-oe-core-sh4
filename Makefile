@@ -51,6 +51,7 @@ BBLAYERS ?= \
 	$(CURDIR)/meta-openembedded/meta-webserver \
 	$(CURDIR)/openembedded-core/meta \
 	$(CURDIR)/meta-openpli \
+	$(CURDIR)/meta-cuberevo \
 	$(CURDIR)/meta-spiderbox \
 	$(CURDIR)/meta-local \
 	$(CURDIR)/meta-qt5
