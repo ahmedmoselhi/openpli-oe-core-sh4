@@ -1,0 +1,3371 @@
+diff -Naur sh4-apps-master/tools/fp_control/autogen.sh sh4-apps-prince/tools/fp_control/autogen.sh
+--- sh4-apps-master/tools/fp_control/autogen.sh	2019-08-27 22:19:07.000000000 +0430
++++ sh4-apps-prince/tools/fp_control/autogen.sh	2019-08-28 01:52:14.765292442 +0430
+@@ -1,15 +1,62 @@
+ #!/bin/sh
+ 
+-package="tools-fp_control"
++package="tuxbox-apps-misc-tools"
+ 
+ srcdir=`dirname $0`
+ test -z "$srcdir" && srcdir=.
+ 
+ cd "$srcdir"
++DIE=0
++
++(autoconf --version) < /dev/null > /dev/null 2>&1 || {
++	echo
++	echo "You must have autoconf installed to compile $package."
++	echo "Download the appropriate package for your system,"
++	echo "or get the source from one of the GNU ftp sites"
++	echo "listed in http://www.gnu.org/order/ftp.html"
++	DIE=1
++}
++
++(automake --version) < /dev/null > /dev/null 2>&1 || {
++	echo
++	echo "You must have automake installed to compile $package."
++	echo "Download the appropriate package for your system,"
++	echo "or get the source from one of the GNU ftp sites"
++	echo "listed in http://www.gnu.org/order/ftp.html"
++	DIE=1
++}
++
++(libtool --version) < /dev/null > /dev/null 2>&1 || {
++	echo
++	echo "You must have libtool installed to compile $package."
++	echo "Download the appropriate package for your system,"
++	echo "or get the source from one of the GNU ftp sites"
++	echo "listed in http://www.gnu.org/order/ftp.html"
++	DIE=1
++}
++
++if test "$DIE" -eq 1; then
++	exit 1
++fi
++
++if [ ! -e acinclude.m4 ]; then
++	for i in .. ../.. ../../..; do
++		if [ -e `pwd`/$i/acinclude.m4 ]; then
++			ln -s `pwd`/$i/acinclude.m4 .
++		fi
++	done
++fi
++
+ echo "Generating configuration files for $package, please wait...."
+ 
+-aclocal --force
+-libtoolize --force
+-autoconf --force
+-autoheader  --force
+-automake --add-missing --force-missing --foreign
++echo "  aclocal $ACLOCAL_FLAGS"
++aclocal $ACLOCAL_FLAGS
++echo "  libtoolize --automake"
++libtoolize --automake
++echo "  autoconf"
++autoconf
++echo "  autoheader"
++autoheader
++echo "  automake --add-missing"
++automake --add-missing 
++
+diff -Naur sh4-apps-master/tools/fp_control/configure.ac sh4-apps-prince/tools/fp_control/configure.ac
+--- sh4-apps-master/tools/fp_control/configure.ac	2019-08-27 22:19:07.000000000 +0430
++++ sh4-apps-prince/tools/fp_control/configure.ac	2019-08-28 01:52:14.765292442 +0430
+@@ -1,16 +1,33 @@
+-AC_INIT([fp_control],[1.0],[],[fp_control])
+-AC_PREREQ(2.53)
++AC_INIT(tuxbox-apps-misc-tools,0.0.1,,tuxbox-misc-tools)
++AM_INIT_AUTOMAKE(tuxbox-misc-tools,0.0.1)
+ 
+-AM_INIT_AUTOMAKE
++TUXBOX_APPS
+ 
+ AC_PROG_CC
+ AC_PROG_CXX
++AM_PROG_LIBTOOL
++
++AC_ARG_ENABLE([multicom406], 
++        [AS_HELP_STRING(--enable-multicom406,    enable multicom406 stuff)], 
++        [case "${enableval}" in 
++                yes) enable_multicom406=true ;; 
++                no) enable_multicom406=false ;; 
++                *) AC_MSG_ERROR([bad value ${enableval} for --enable-multicom406]) ;; 
++        esac]) 
++AM_CONDITIONAL([ENABLE_MULTICOM406], [test x$enable_multicom406 = xtrue])
++AC_SUBST(MULTICOM406)
++
++AC_ARG_ENABLE([multicom324], 
++        [AS_HELP_STRING(--enable-multicom324,    enable multicom324 stuff)], 
++        [case "${enableval}" in 
++                yes) enable_multicom324=true ;; 
++                no) enable_multicom324=false ;; 
++                *) AC_MSG_ERROR([bad value ${enableval} for --enable-multicom324]) ;; 
++        esac]) 
++AM_CONDITIONAL([ENABLE_MULTICOM324], [test x$enable_multicom324 = xtrue])
++AC_SUBST(MULTICOM324)
+ 
+-m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+-m4_ifdef([LT_INIT], [LT_INIT], [AC_PROG_LIBTOOL])
+-AC_CONFIG_MACRO_DIR([m4])
+ 
+-AC_CHECK_LIB(pthread, pthread_create, [LIBS="$LIBS -lpthread"])
+ 
+ AC_OUTPUT([
+ Makefile
+diff -Naur sh4-apps-master/tools/fp_control/fp_control.c sh4-apps-prince/tools/fp_control/fp_control.c
+--- sh4-apps-master/tools/fp_control/fp_control.c	2019-08-28 01:52:38.550464674 +0430
++++ sh4-apps-prince/tools/fp_control/fp_control.c	2019-08-28 01:52:14.765292442 +0430
+@@ -10,7 +10,7 @@
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+@@ -19,6 +19,12 @@
+  *
+  */
+ 
++/*
++ * added:
++ * powerLed intensity adjustment
++ * by zeroone
++ */
++
+ #include <fcntl.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -34,213 +40,189 @@
+ ////////////////////////////////////////////////////////////////////////////////////////////////////
+ ////////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+-/* Software version of fp_control, please increase on every change */
+-static const char *sw_version = "1.11Audioniek 20190814.1";
+-static eWakeupReason reason = 0;
++/* software version of fp_control. please increas on every change */
++static const char* sw_version = "1.03";
+ 
+ typedef struct
+ {
+-	char *arg;
+-	char *arg_long;
+-	char *arg_description;
++	char* arg;
++	char* arg_long;
++	char* arg_description;
+ } tArgs;
+ 
+-time_t *theGMTTime;
+-//int gmt_offset;
+-char vName[129] = "Unknown";
+-int Vdisplay = 0; //
+-int Vdisplay_custom = 0;
+-char *VtimeFormat = "Unknown";
+-int Vwakeup = 5 * 60; //default wakeup decrement in minutes
+-const char *wakeupreason[8] = { "Unknown", "Power on", "From deep standby", "Timer", "Power switch", "Unknown", "Unknown", "Unknown" };
+-
+ tArgs vArgs[] =
+ {
+-	{ "-e", "  --setTimer         * ", "Args: None or [time date] in format HH:MM:SS dd-mm-YYYY \
++   { "-e", "--setTimer       ",
++"Args: No arguments or [time date] Format: HH:MM:SS dd-mm-YYYY \
+ \n\tSet the most recent timer from e2 or neutrino to the frontcontroller and standby \
+-\n\tSet the current frontcontroller wake-up time" 
+-	},
+-	{ "-d", "  --shutDown         * ", "Args: [time date] Format: HH:MM:SS dd-mm-YYYY\n\tMimics shutdown command. Shutdown receiver via fc at given time." },
+-	{ "-g", "  --getTime          * ", "Args: No arguments\n\tReturn current set frontcontroller time" },
+-	{ "-gs", " --getTimeAndSet    * ", "Args: No arguments\n\tSet system time to current frontcontroller time" },
+-	{ "-gw", " --getWakeupTime    * ", "Args: No arguments\n\tReturn current wakeup time" },
+-	{ "-s", "  --setTime          * ", "Args: time date Format: HH:MM:SS dd-mm-YYYY\n\tSet the frontcontroller time" },
+-	{ "-sst", "--setSystemTime    * ", "Args: No arguments\n\tSet the frontcontroller time equal to system time" },
+-//	{ "-gt", " --getWakeTime      * ", "Args: No arguments\n\tGet the frontcontroller wake up time" },
+-	{ "-st", " --setWakeTime      * ", "Args: time date Format: HH:MM:SS dd-mm-YYYY\n\tSet the frontcontroller wake up time" },
+-	{ "-r", "  --reboot           * ", "Args: time date Format: HH:MM:SS dd-mm-YYYY\n\tReboot receiver via fc at given time" },
+-	{ "-p", "  --sleep            * ", "Args: time date Format: HH:MM:SS dd-mm-YYYY\n\tSleep receiver via fc until given time" },
+-	{ "-t", "  --settext            ", "Arg : text\n\tSet text to frontpanel." },
+-	{ "-l", "  --setLed             ", "Args: led on\n\tSet a led on or off" },
+-	{ "-i", "  --setIcon            ", "Args: icon on\n\tSet an icon on or off" },
+-	{ "-b", "  --setBrightness      ", "Arg : brightness 0..7\n\tSet display brightness" },
+-	{ "-led", "--setLedBrightness   ", "Arg : brightness\n\tSet LED brightness" },
+-	{ "-w", "  --getWakeupReason  * ", "Args: No arguments\n\tGet the wake-up reason" },
+-	{ "-L", "  --setLight           ", "Arg : 0/1\n\tSet light" },
+-	{ "-c", "  --clear              ", "Args: No arguments\n\tClear display, all icons and leds off" },
+-	{ "-v", "  --version            ", "Args: No arguments\n\tGet version from fc" },
+-	{ "-sf", " --setFan             ", "Arg : 0/1\n\tSet fan on/off" },
+-	{ "-sr", " --setRF              ", "Arg : 0/1\n\tSet rf modulator on/off" },
+-	{ "-dt", " --display_time       ", "Arg : 0/1\n\tSet time display on/off" },
+-	{ "-tm", " --time_mode          ", "Arg : 0/1\n\tSet 12 or 24 hour time mode" },
+-	{ "-V", "  --verbose            ", "Args: None\n\tVerbose operation" },
+-#if defined MODEL_SPECIFIC
+-	{ "-ms", " --set_model_specific ", "Args: int\n\tModel specific set function (note: hex input)" },
+-#endif
+-	{ NULL, NULL, NULL }
++\n\tSet the current frontcontroller wake-up time" },
++   { "-d", "--shutdown       ",
++"Args: [time date] Format: HH:MM:SS dd-mm-YYYY\n\tMimics shutdown command. Shutdown receiver via fc at given time." },
++
++   { "-g", "--getTime        ",
++"Args: No arguments\n\tReturn current set frontcontroller time" },
++   { "-gs", "--getTimeAndSet        ",
++"Args: No arguments\n\tSet system time to current frontcontroller time" },
++   { "-s", "--setTime        ",
++"Args: time date Format: HH:MM:SS dd-mm-YYYY\n\tSet the current frontcontroller time" },
++   { "-gt", "--getTimer       ",
++"Args: No arguments\n\tGet the current frontcontroller wake-up time" },
++
++   { "-r", "--reboot         ",
++"Args: time date Format: HH:MM:SS dd-mm-YYYY\n\tReboot receiver via fc at given time." },
++   { "-p", "--sleep          ",
++"Args: time date Format: HH:MM:SS dd-mm-YYYY\n\tReboot receiver via fc at given time." },
++   { "-t", "--settext        ",
++"Args: text\n\tSet text to frontpanel." },
++   { "-l", "--setLed         ",
++"Args: led on\n\tSet a led on or off" },
++   { "-i", "--setIcon        ",
++"Args: icon on\n\tSet an icon on or off" },
++   { "-b", "--setBrightness  ",
++"Args: brightness\n\tSet display brightness" },
++   { "-w", "--getWakeupReason",
++"Args: No arguments\n\tGet the wake-up reason" },
++   { "-L", "--setLight",
++"Args: 0/1\n\tSet light" },
++   { "-c", "--clear",
++"Args: No argumens\n\tClear display, all icons and leds off" },
++   { "-dt", "--display_timer",
++"Args: 0/1\n\tset display time on/off" },
++   { NULL, NULL, NULL }
+ };
+ 
+-int usage(Context_t *context, char *prg, char *cmd)
++const char *wakeupreason[4] = { "unknown", "poweron", "standby", "timer" };
++
++void usage(Context_t * context, char* prg, char* cmd)
+ {
+-	/* let the model print out what it can handle in reality */
+-	if ((((Model_t *)context->m)->Usage == NULL)
+-	|| (((Model_t *)context->m)->Usage(context, prg, cmd) < 0))
++	/* let the model print out what it can handle in real */
++	if ((((Model_t*)context->m)->Usage == NULL) || (((Model_t*)context->m)->Usage(context, prg) < 0))
+ 	{
+ 		int i;
++
+ 		/* or printout a default usage */
+-		fprintf(stderr, "General usage:\n\n");
++		fprintf(stderr, "usage:\n\n");
+ 		fprintf(stderr, "%s argument [optarg1] [optarg2]\n", prg);
+-		for (i = 0; ; i++)
++
++		for (i = 0; ;i++)
+ 		{
+ 			if (vArgs[i].arg == NULL)
+-			{
+ 				break;
+-			}
++
+ 			if ((cmd == NULL) || (strcmp(cmd, vArgs[i].arg) == 0) || (strstr(vArgs[i].arg_long, cmd) != NULL))
+-			{
+ 				fprintf(stderr, "%s   %s   %s\n", vArgs[i].arg, vArgs[i].arg_long, vArgs[i].arg_description);
+-			}
+ 		}
+-		fprintf(stderr, "Options marked * should be the only calling argument.\n");
+-	}
+-	if (((Model_t *)context->m)->Exit)
+-	{
+-		((Model_t *)context->m)->Exit(context);
+ 	}
++
++	if (((Model_t*)context->m)->Exit)
++		((Model_t*)context->m)->Exit(context);
+ 	exit(1);
+ }
+ 
+ ////////////////////////////////////////////////////////////////////////////////////////////////////
+ ////////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+-void getTimeFromArg(char *timeStr, char *dateStr, time_t *theTime)
+-{ // timeStr, dateStr -> time_t
+-	struct tm thetempTime;
+-	int mjd;
+-
+-	sscanf(timeStr, "%d:%d:%d", &thetempTime.tm_hour, &thetempTime.tm_min, &thetempTime.tm_sec);
+-	sscanf(dateStr, "%d-%d-%d", &thetempTime.tm_mday, &thetempTime.tm_mon, &thetempTime.tm_year);
+-	//printf("%s > input: %02d:%02d:%02d %02d-%02d-%02d\n", __func__, thetempTime.tm_hour, thetempTime.tm_min, thetempTime.tm_sec, thetempTime.tm_mday, thetempTime.tm_mon, thetempTime.tm_year);
+-	thetempTime.tm_mon  -= 1;
+- 	thetempTime.tm_year -= 1900;
+-
+-	thetempTime.tm_isdst = -1; /* say mktime that we do not know */
+-//	/* FIXME: hmm this is not a gmt or, isn't it? */
+-//	theTime = mktime(&thetempTime);
+-	/* FIXED: indeed, but this one is... */
+-	mjd = (int)modJulianDate(&thetempTime);
+-	//printf("%s date seconds: %d (time_t)\n", __func__, mjd);
+-	mjd *= 86400; // MJD * seconds per day
+-	//printf("%s date seconds: %d (time_t)\n", __func__, mjd);
+-	mjd += thetempTime.tm_hour * 3600;
+-	//printf("%s date + hour seconds: %d (time_t)\n", __func__, mjd);
+-	mjd += thetempTime.tm_min * 60;
+-	//printf("%s date + hour + min seconds: %d (time_t)\n", __func__, mjd);
+-	mjd += thetempTime.tm_sec;
+-	//printf("%s date + hour + min seconds: %d (time_t)\n", __func__, mjd);
+-	*theTime = mjd;
+-	//printf("%s < output: %d (time_t)\n", __func__, (int)*theTime);
++/* fixme: check if this function is correct and delivers gmt time */
++void getTimeFromArg(char* timeStr, char* dateStr, time_t* theGMTTime)
++{
++	struct tm  theTime;
++
++	printf("%s\n", __func__);
++
++	sscanf(timeStr, "%d:%d:%d",
++		&theTime.tm_hour, &theTime.tm_min, &theTime.tm_sec);
++
++	sscanf(dateStr, "%d-%d-%d",
++		&theTime.tm_mday, &theTime.tm_mon, &theTime.tm_year);
++
++	theTime.tm_year -= 1900;
++	theTime.tm_mon   = theTime.tm_mon - 1;
++
++	theTime.tm_isdst = -1; /* say mktime that we dont know */
++	/* fixme: hmm this is not a gmt or, isn't it? */
++	*theGMTTime = mktime(&theTime);
++
++	/* new_time = localtime(&dummy);*/
++	printf("%s <\n", __func__);
++
+ }
+ 
+ ////////////////////////////////////////////////////////////////////////////////////////////////////
+ ////////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+-void processCommand(Context_t *context, int argc, char *argv[])
++void processCommand (Context_t * context, int argc, char* argv[])
+ {
+ 	int i;
+ 
+-	if (((Model_t *)context->m)->Init)
+-	{
+-		context->fd = ((Model_t *)context->m)->Init(context);
+-	}
++	if (((Model_t*)context->m)->Init)
++		context->fd = ((Model_t*)context->m)->Init(context);
++
+ 	if (argc > 1)
+ 	{
+ 		i = 1;
+-		while (argc > i)
++		while (i < argc)
+ 		{
+-			if ((strcmp(argv[i], "-V") == 0) || (strcmp(argv[i], "--verbose") == 0))
+-			{
+-				/* switch verbose on */
+-				disp = 1;
+-			}
+-			else if ((strcmp(argv[i], "-e") == 0) || (strcmp(argv[i], "--setTimer") == 0))
++			if ((strcmp(argv[i], "-e") == 0) || (strcmp(argv[i], "--setTimer") == 0))
+ 			{
+ 				if (argc == 4)
+ 				{
+ 					time_t theGMTTime;
+ 					getTimeFromArg(argv[i + 1], argv[i + 2], &theGMTTime);
+ 					/* set the frontcontroller timer from args */
+-					if (((Model_t *)context->m)->SetTimer)((Model_t *)context->m)->SetTimer(context, &theGMTTime);
++					if (((Model_t*)context->m)->SetTimer)
++						((Model_t*)context->m)->SetTimer(context, &theGMTTime);
+ 					i += 2;
+ 				}
+ 				else if (argc == 2)
+ 				{
+-					/* setup timer; wake-up time will be read */
+-					if (((Model_t *)context->m)->SetTimer)((Model_t *)context->m)->SetTimer(context, NULL);
++					/* setup timer; wake-up time will be read from e2 */
++					if (((Model_t*)context->m)->SetTimer)
++						((Model_t*)context->m)->SetTimer(context, NULL);
+ 				}
+ 				else
+-				{
+-					usage(context, argv[0], argv[i]);
+-				}
++					usage(context, argv[0], argv[1]);
+ 			}
+ 			else if ((strcmp(argv[i], "-g") == 0) || (strcmp(argv[i], "--getTime") == 0))
+ 			{
+-				time_t theGMTTime;  //TODO: print time according to receiver mask
++				time_t theGMTTime;
+ 
+ 				/* get the frontcontroller time */
+-				if (((Model_t *)context->m)->GetTime)
++				if (((Model_t*)context->m)->GetTime)
+ 				{
+-					if (((Model_t *)context->m)->GetTime(context, &theGMTTime) == 0)
++					if (((Model_t*)context->m)->GetTime(context, &theGMTTime) == 0)
+ 					{
+ 						struct tm *gmt = gmtime(&theGMTTime);
+-						printf("Current front processor time: %02d:%02d:%02d %02d-%02d-%04d\n",
+-							   gmt->tm_hour, gmt->tm_min, gmt->tm_sec, gmt->tm_mday, gmt->tm_mon + 1, gmt->tm_year + 1900);
++
++						fprintf(stderr, "Current Time: %02d:%02d:%02d %02d-%02d-%04d\n",
++						     gmt->tm_hour, gmt->tm_min, gmt->tm_sec, gmt->tm_mday, gmt->tm_mon+1, gmt->tm_year+1900);
+ 					}
+ 				}
++
+ 			}
+ 			else if ((strcmp(argv[i], "-gs") == 0) || (strcmp(argv[i], "--getTimeAndSet") == 0))
+ 			{
+ 				time_t theGMTTime;
+ 
+ 				/* get the frontcontroller time */
+-				if (((Model_t *)context->m)->GetTime)
++				if (((Model_t*)context->m)->GetTime)
+ 				{
+-					if (((Model_t *)context->m)->GetTime(context, &theGMTTime) == 0)
++					if (((Model_t*)context->m)->GetTime(context, &theGMTTime) == 0)
+ 					{
+-						/* FIXME/CAUTION: assumes frontprocessor time is local and not UTC */
+ 						struct tm *gmt = gmtime(&theGMTTime);
+ 
+-						printf("Setting system time to current frontpanel time: %02d:%02d:%02d %02d-%02d-%04d\n",
+-								gmt->tm_hour, gmt->tm_min, gmt->tm_sec, gmt->tm_mday, gmt->tm_mon + 1, gmt->tm_year + 1900);
+-						char cmd[50];
+-						sprintf(cmd, "date -s %04d.%02d.%02d-%02d:%02d:%02d\n", gmt->tm_year + 1900, gmt->tm_mon + 1, gmt->tm_mday, gmt->tm_hour, gmt->tm_min, gmt->tm_sec);
+-						system(cmd);
+-					}
+-				}
+-			}
+-			else if ((strcmp(argv[i], "-gw") == 0) || (strcmp(argv[i], "--getWakeupTime") == 0))
+-			{
+-				time_t theGMTTime;
++						struct timeval tv;
++						time_t allsec;
+ 
+-				/* get the frontcontroller wakeup time */
+-				if (((Model_t*)context->m)->GetWTime)
+-				{
+-					if (((Model_t*)context->m)->GetWTime(context, &theGMTTime) == 0)
+-					{
+-						struct tm *gmt = gmtime(&theGMTTime);
++						allsec=mktime(gmt);
++						tv.tv_sec=allsec;
+ 
+-						fprintf(stderr, "Wakeup Time: %02d:%02d:%02d %02d-%02d-%04d\n",
++//						settimeofday(&tv, 0);   // only works on spark, so we make a system-call later
++
++						fprintf(stderr, "Setting RTC to current frontpanel-time: %02d:%02d:%02d %02d-%02d-%04d\n",
+ 							gmt->tm_hour, gmt->tm_min, gmt->tm_sec, gmt->tm_mday, gmt->tm_mon+1, gmt->tm_year+1900);
++						char cmd[50];
++						sprintf(cmd, "date -s %04d.%02d.%02d-%02d:%02d:%02d\n", gmt->tm_year+1900, gmt->tm_mon+1, gmt->tm_mday, gmt->tm_hour, gmt->tm_min, gmt->tm_sec);
++						system(cmd);
+ 					}
+ 				}
+ 			}
+@@ -251,73 +233,37 @@
+ 				if (argc == 4)
+ 				{
+ 					getTimeFromArg(argv[i + 1], argv[i + 2], &theGMTTime);
+-					/* set the frontcontroller time */
+-					if (((Model_t *)context->m)->SetTime)
+-					{
+-						((Model_t *)context->m)->SetTime(context, &theGMTTime);
+-					}
+-					else
+-					{
+-						usage(context, argv[0], argv[i]);
+-					}
+-				}
+-				i += 2;
+-			}
+-			else if ((strcmp(argv[i], "-sst") == 0) || (strcmp(argv[i], "--setSystemTime") == 0))
+-			{
+-				time_t theGMTTime;
+ 
+-				/* set the frontcontroller time to system time */
+-				if (((Model_t *)context->m)->SetSTime)
+-				{
+-					((Model_t *)context->m)->SetSTime(context, &theGMTTime);
+-				}
+-			}
+-			else if ((strcmp(argv[i], "-st") == 0) || (strcmp(argv[i], "--setWakeTime") == 0))
+-			{
+-				time_t theLocalTime;
++					/* set the frontcontroller time */
++					if (((Model_t*)context->m)->SetTime)
++						((Model_t*)context->m)->SetTime(context, &theGMTTime);
++				} else
++					usage(context, argv[0], argv[1]);
+ 
+-				if (argc == 4)
+-				{
+-					getTimeFromArg(argv[i + 1], argv[i + 2], &theLocalTime);
+-					/* set the frontcontroller wake up time */
+-					if (((Model_t *)context->m)->SetWTime)
+-					{
+-						((Model_t *)context->m)->SetWTime(context, &theLocalTime);
+-					}
+-					else
+-					{
+-						usage(context, argv[0], argv[i]);
+-					}
+-				}
+ 				i += 2;
+ 			}
+-			else if ((strcmp(argv[i], "-d") == 0) || (strcmp(argv[i], "--shutDown") == 0))
++			else if ((strcmp(argv[i], "-d") == 0) || (strcmp(argv[i], "--shutdown") == 0))
+ 			{
+ 				time_t theGMTTime;
+ 
+ 				if (argc == 4)
+ 				{
+ 					getTimeFromArg(argv[i + 1], argv[i + 2], &theGMTTime);
+-					/* shutdown at the given time */
+-					if (((Model_t *)context->m)->Shutdown)
+-					{
+-						((Model_t *)context->m)->Shutdown(context, &theGMTTime);
+-					}
++
++					/* shutdown immediately or at a given time */
++					if (((Model_t*)context->m)->Shutdown)
++					      ((Model_t*)context->m)->Shutdown(context, &theGMTTime);
+ 				}
+ 				else if (argc == 2)
+ 				{
+ 					theGMTTime = -1;
+-					/* shutdown immediately */
+-					if (((Model_t *)context->m)->Shutdown)
+-					{
+-						((Model_t *)context->m)->Shutdown(context, &theGMTTime);
+-					}
++					/* shutdown immediately or at a given time */
++					if (((Model_t*)context->m)->Shutdown)
++						((Model_t*)context->m)->Shutdown(context, &theGMTTime);
+ 				}
+ 				else
+-				{
+-					usage(context, argv[0], argv[i]);
+-				}
++					usage(context, argv[0], argv[1]);
++
+ 				i += 2;
+ 			}
+ 			else if ((strcmp(argv[i], "-r") == 0) || (strcmp(argv[i], "--reboot") == 0))
+@@ -327,27 +273,15 @@
+ 				if (argc == 4)
+ 				{
+ 					getTimeFromArg(argv[i + 1], argv[i + 2], &theGMTTime);
+-					/* reboot at the given time */
+-					if (((Model_t *)context->m)->Reboot)
+-					{
+-						((Model_t *)context->m)->Reboot(context, &theGMTTime);
+-					}
+-					i += 2;
+-				}
+-				else if (argc == 2)
+-				{
+-					theGMTTime = -1;
+-					/* reboot immediately */
+-					printf("Receiver: %s\n", vName);
+-					if (((Model_t *)context->m)->Reboot)
+-					{
+-						((Model_t *)context->m)->Reboot(context, &theGMTTime);
+-					}
++
++					/* reboot immediately or at a given time */
++					if (((Model_t*)context->m)->Reboot)
++						((Model_t*)context->m)->Reboot(context, &theGMTTime);
+ 				}
+ 				else
+-				{
+-					usage(context, argv[0], argv[i]);
+-				}
++					usage(context, argv[0], argv[1]);
++
++				i += 2;
+ 			}
+ 			else if ((strcmp(argv[i], "-p") == 0) || (strcmp(argv[i], "--sleep") == 0))
+ 			{
+@@ -356,334 +290,146 @@
+ 				if (argc == 4)
+ 				{
+ 					getTimeFromArg(argv[i + 1], argv[i + 2], &theGMTTime);
++
+ 					/* sleep for a while, or wake-up on another reason (rc ...) */
+-					if (((Model_t *)context->m)->Sleep)
+-						((Model_t *)context->m)->Sleep(context, &theGMTTime);
+-				}
++					if (((Model_t*)context->m)->Sleep)
++						((Model_t*)context->m)->Sleep(context, &theGMTTime);
++		 		}
+ 				else
+-				{
+-					usage(context, argv[0], argv[i]);
+-				}
++		 			usage(context, argv[0], argv[1]);
++
+ 				i += 2;
+ 			}
+ 			else if ((strcmp(argv[i], "-t") == 0) || (strcmp(argv[i], "--settext") == 0))
+ 			{
+-				if (argc >= i + 1)
+-				{
+-					if ((argc - i) == 1)
+-					{
+-						usage(context, argv[0], argv[i]);
+-					}
++				if (i + 1 <= argc)
+ 					/* set display text */
+-					if (((Model_t *)context->m)->SetText)
+-					{
+-						((Model_t *)context->m)->SetText(context, argv[i + 1]);
+-					}
+-				}
++					if (((Model_t*)context->m)->SetText)
++						((Model_t*)context->m)->SetText(context, argv[i+1]);
+ 				i += 1;
++
+ 			}
+ 			else if ((strcmp(argv[i], "-l") == 0) || (strcmp(argv[i], "--setLed") == 0))
+ 			{
+-				if (argc >= i + 2)
++				if (i + 2 <= argc)
+ 				{
+ 					int which, on;
+ 
+ 					which = atoi(argv[i + 1]);
+-					if ((argc - i) == 2)
+-					{
+-						usage(context, argv[0], argv[i]);
+-					}
+ 					on = atoi(argv[i + 2]);
++					i+=2;
++
+ 					/* set display led */
+-					if (((Model_t *)context->m)->SetLed)
+-					{
+-						((Model_t *)context->m)->SetLed(context, which, on);
+-					}
+-				}
+-				else
+-				{
+-					usage(context, argv[0], argv[i]);
++					if (((Model_t*)context->m)->SetLed)
++					   ((Model_t*)context->m)->SetLed(context, which, on);
+ 				}
+ 				i += 2;
+ 			}
+ 			else if ((strcmp(argv[i], "-i") == 0) || (strcmp(argv[i], "--setIcon") == 0))
+ 			{
+-				if (argc >= i + 2)
++				if (i + 2 <= argc)
+ 				{
+ 					int which, on;
+ 
+ 					which = atoi(argv[i + 1]);
+-					if ((argc - i) == 2)
+-					{
+-						usage(context, argv[0], argv[i]);
+-					}
+ 					on = atoi(argv[i + 2]);
++
+ 					/* set display icon */
+-					if (((Model_t *)context->m)->SetIcon)
+-					{
+-						((Model_t *)context->m)->SetIcon(context, which, on);
+-					}
+-				}
+-				else
+-				{
+-					usage(context, argv[0], argv[i]);
++					if (((Model_t*)context->m)->SetIcon)
++						((Model_t*)context->m)->SetIcon(context, which, on);
+ 				}
+ 				i += 2;
+ 			}
+ 			else if ((strcmp(argv[i], "-b") == 0) || (strcmp(argv[i], "--setBrightness") == 0))
+ 			{
+-				if (argc >= i + 1)
++				if (i + 1 <= argc)
+ 				{
+ 					int brightness;
+ 
+-					if ((argc - i) == 1)
+-					{
+-						usage(context, argv[0], argv[i]);
+-					}
+ 					brightness = atoi(argv[i + 1]);
+-					/* set display brightness */
+-					if (((Model_t *)context->m)->SetBrightness)
+-					{
+-						((Model_t *)context->m)->SetBrightness(context, brightness);
+-					}
+-				}
+-				i += 1;
+-			}
+-			else if ((strcmp(argv[i], "-w") == 0) || (strcmp(argv[i], "--getWakeupReason") == 0))
+-			{
+-				int ret = -1;
+ 
+-				if (((Model_t *)context->m)->GetWakeupReason)
+-				{
+-					ret = ((Model_t *)context->m)->GetWakeupReason(context, &reason);
+-				}
+-				else
+-				{
+-					ret = getWakeupReasonPseudo(&reason);
+-				}
+-				if (ret == 0)
+-				{
+-					printf("Wakeup reason = %d (%s)\n\n", reason & 0x07, wakeupreason[reason & 0x07]);
+-					syncWasTimerWakeup((eWakeupReason)reason);
+-				}
+-			}
+-			else if ((strcmp(argv[i], "-L") == 0) || (strcmp(argv[i], "--setLight") == 0))
+-			{
+-				if (argc >= i + 1)
+-				{
+-					int on;
+ 
+-					if ((argc - i) == 1)
+-					{
+-						usage(context, argv[0], argv[i]);
+-					}
+-					on = atoi(argv[i + 1]);
+-					if (((Model_t *)context->m)->SetLight)
+-					{
+-						((Model_t *)context->m)->SetLight(context, on);
+-					}
++					/* set display brightness */
++					if (((Model_t*)context->m)->SetBrightness)
++						((Model_t*)context->m)->SetBrightness(context, brightness);
+ 				}
+ 				i += 1;
+ 			}
+-			else if ((strcmp(argv[i], "-c") == 0) || (strcmp(argv[i], "--clear") == 0))
+-			{
+-				/* clear the display */
+-				if (((Model_t *)context->m)->Clear)
+-				{
+-					((Model_t *)context->m)->Clear(context);
+-				}
+-			}
+-			else if ((strcmp(argv[i], "-led") == 0) || (strcmp(argv[i], "--setLedBrightness") == 0))
++			/* added by zeroone; set PowerLed Brightness on HDBOX*/
++			// BEGIN SetPwrLed
++			else if((strcmp(argv[i], "-P") == 0) || (strcmp(argv[i], "--setPwrLed") == 0))
+ 			{
+-				if (argc >= i + 1)
++				if (i + 1 <= argc)
+ 				{
+-					/* set LED brightness */
+ 					int brightness;
+ 
+-					if ((argc - i) == 1)
+-					{
+-						usage(context, argv[0], argv[i]);
+-					}
+ 					brightness = atoi(argv[i + 1]);
+-					if (((Model_t *)context->m)->SetLedBrightness)
+-					{
+-						((Model_t *)context->m)->SetLedBrightness(context, brightness);
+-					}
++
++					/* set PwrLed Brightness icon */
++					if (((Model_t*)context->m)->SetPwrLed)
++						((Model_t*)context->m)->SetPwrLed(context, brightness);
++
+ 				}
+ 				i += 1;
+ 			}
+-			else if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "--version") == 0))
++			// END SetPwrLed
++			else if ((strcmp(argv[i], "-w") == 0) || (strcmp(argv[i], "--getWakeupReason") == 0))
+ 			{
+-				int version = -1;
++				int ret = -1;
++				eWakeupReason reason;
+ 
+-				if (!disp)
+-				{
+-					printf("\nProgram version info:\n");
+-					printf("fp_control version %s\n", sw_version);
+-					printf("\nConfiguration of receiver:\n");
+-					printf("Display      : %d  Time format: %s", Vdisplay, VtimeFormat);
+-					printf("Displaycustom: %d  Wakeupdecrement: %d minute(s)", Vdisplay_custom, Vwakeup / 60);
+-					if (Vwakeup % 60 != 0)
+-					{
+-						printf(" %d second(s)\n\n", Vwakeup % 60);
+-					}
+-					else
+-					{
+-						printf("\n\n");
+-					}
+-				}
+-				/* get FP version info */
+-				if (((Model_t *)context->m)->GetVersion)
+-				{
+-					((Model_t *)context->m)->GetVersion(context, &version);
+-				}
+-				if (version == -1)
+-				{
+-					printf("Remark: FP version is unknown\n");
+-				}
++				if (((Model_t*)context->m)->GetWakeupReason)
++					ret = ((Model_t*)context->m)->GetWakeupReason(context, &reason);
+ 				else
++					ret = getWakeupReasonPseudo(&reason);
++				
++				if (ret == 0)
+ 				{
+-					printf("FP version is %d.%02d\n", (version / 100) & 0xff, (version % 100) & 0xff);
++					printf("wakeup reason = %d\n", reason);
++					printf("(%s)\n", wakeupreason[reason & 0x03]);
++					syncWasTimerWakeup(reason);
+ 				}
+ 			}
+-			else if ((strcmp(argv[i], "-sf") == 0) || (strcmp(argv[i], "--setFan") == 0))
++			else if ((strcmp(argv[i], "-L") == 0) || (strcmp(argv[i], "--setLight") == 0))
+ 			{
+-				if (argc >= i + 1)
++				if (i + 1 < argc)
+ 				{
+ 					int on;
+ 
+-					if ((argc - i) == 1)
+-					{
+-						usage(context, argv[0], argv[i]);
+-					}
+ 					on = atoi(argv[i + 1]);
+-					/* set fan on/off */
+-					if (((Model_t *)context->m)->SetFan)
+-					{
+-						((Model_t *)context->m)->SetFan(context, on);
+-					}
+-				}
++
++					/* set brightness on/off */
++					if (((Model_t*)context->m)->SetLight)
++					((Model_t*)context->m)->SetLight(context, on);
++
++			 	}
+ 				i += 1;
+ 			}
+-			else if ((strcmp(argv[i], "-sr") == 0) || (strcmp(argv[i], "--setRF") == 0))
++			else if ((strcmp(argv[i], "-c") == 0) || (strcmp(argv[i], "--clear") == 0))
+ 			{
+-				if (argc >= i + 1)
+-				{
+-					int on;
+-
+-					if ((argc - i) == 1)
+-					{
+-						usage(context, argv[0], argv[i]);
+-					}
+-					on = atoi(argv[i + 1]);
+-					/* set rf on/off */
+-					if (((Model_t *)context->m)->SetRF)
+-					{
+-						((Model_t *)context->m)->SetRF(context, on);
+-					}
+-				}
+-				i += 1;
++				/* clear the display */
++				if (((Model_t*)context->m)->Clear)
++					((Model_t*)context->m)->Clear(context);
+ 			}
+ 			else if ((strcmp(argv[i], "-dt") == 0) || (strcmp(argv[i], "--display_time") == 0))
+ 			{
+-				if (argc >= i + 1)
++				if (i + 1 <= argc)
+ 				{
+ 					int on;
+ 
+-					if ((argc - i) == 1)
+-					{
+-						usage(context, argv[0], argv[i]);
+-					}
+ 					on = atoi(argv[i + 1]);
+-					/* set time display */
+-					if (((Model_t *)context->m)->SetDisplayTime)
+-					{
+-						((Model_t *)context->m)->SetDisplayTime(context, on);
+-					}
+-				}
+-				i += 1;
+-			}
+-			else if ((strcmp(argv[i], "-tm") == 0) || (strcmp(argv[i], "--time_mode") == 0))
+-			{
+-				if (argc >= i + 1)
+-				{
+-					int twentyFour;
+-
+-					if ((argc - i) == 1)
+-					{
+-						usage(context, argv[0], argv[i]);
+-					}
+-					twentyFour = atoi(argv[i + 1]);
+-					/* set 12/24 hour mode */
+-					if (((Model_t *)context->m)->SetTimeMode)
+-					{
+-						((Model_t *)context->m)->SetTimeMode(context, twentyFour);
+-					}
+-				}
+-				i += 1;
+-			}
+-#if defined MODEL_SPECIFIC
+-			else if ((strcmp(argv[i], "-ms") == 0) || (strcmp(argv[i], "--model_specific") == 0))
+-			{
+-				int j;
+-				char len;
+-				unsigned char testdata[16];
+-
+-				len = argc - 2;
+ 
+-				if ((len > 0) && (len <= 16))
+-				{
+-					if (i + len <= argc)
+-					{
+-						memset(testdata, 0, sizeof(testdata));						
+-
+-						for (j = 1; j <= len; j++)
+-						{
+-							sscanf(argv[j + 1], "%x", (unsigned int *)&testdata[j - 1]); 
+-						}
+-
+-
+-						/* do model specific function */
+-						if (((Model_t *)context->m)->ModelSpecific)
+-						{
+-							j = ((Model_t *)context->m)->ModelSpecific(context, len, testdata);
+-						}
+-						if (j != 0)
+-						{
+-							printf("Error occurred.\n");
+-						}
+-						else
+-						{
+-							printf("Command executed OK, ");
+-							if (testdata[1] == 1)
+-							{
+-								printf("data returned:\n");
+-								for (j = 0; j <= 8; j++)
+-								{
+-									printf("Byte #%1d = 0x%02x\n", j, testdata[j + 2] & 0xff);
+-								}
+-//								printf("\n");
+-							}
+-							else
+-							{
+-								printf("no return data.\n");
+-							}
+-						}
+-					}
+-				}
+-				else
+-				{
+-					printf("Wrong number of arguments, minimum is 1, maximum is 16.\n");
+-					usage(context, argv[0], argv[1]);
++					/* set display icon */
++					if (((Model_t*)context->m)->SetDisplayTime)
++						((Model_t*)context->m)->SetDisplayTime(context, on);
+ 				}
+-				i += len;
++				i += 2;
+ 			}
+-#endif
+ 			else
+ 			{
+-				printf("\nUnknown option [ %s ]\n", argv[i]);
+ 				usage(context, argv[0], NULL);
+ 			}
++
+ 			i++;
+ 		}
+ 	}
+@@ -691,165 +437,61 @@
+ 	{
+ 		usage(context, argv[0], NULL);
+ 	}
+-	if (((Model_t *)context->m)->Exit)
+-	{
+-		((Model_t *)context->m)->Exit(context);
+-	}
++	if (((Model_t*)context->m)->Exit)
++		((Model_t*)context->m)->Exit(context);
++	exit(1);
+ }
+ 
+ ////////////////////////////////////////////////////////////////////////////////////////////////////
+ ////////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+-int getKathreinUfs910BoxType()
+-{
+-	char vType;
+-	int vFdBox = open("/proc/boxtype", O_RDONLY);
+-	read(vFdBox, &vType, 1);
+-	close(vFdBox);
+-	return vType == '0' ? 0 : vType == '1' || vType == '3' ? 1 : -1;
+-}
+-
+ int getModel()
+ {
+-	int vFd = -1;
+-	const int cSize = 128;
+-	char vName[129] = "Unknown";
+-	int vLen = -1;
+-	eBoxType vBoxType = Unknown;
++	int         vFd             = -1;
++	const int   cSize           = 128;
++	char        vName[129]      = "Unknown";
++	int         vLen            = -1;
++	eBoxType    vBoxType        = Unknown;
+ 
+ 	vFd = open("/proc/stb/info/model", O_RDONLY);
+-	vLen = read(vFd, vName, cSize);
++	vLen = read (vFd, vName, cSize);
+ 	close(vFd);
+ 
+-	if (vLen > 0)
+-	{
+-		vName[vLen - 1] = '\0';
+-		if (!strncasecmp(vName, "ufs910", 6))
+-		{
+-			switch (getKathreinUfs910BoxType())
+-			{
+-				case 0:
+-				{
+-					vBoxType = Ufs910_1W;
+-					break;
+-				}
+-				case 1:
+-				{
+-					vBoxType = Ufs910_14W;
+-					break;
+-				}
+-				default:
+-				{
+-					vBoxType = Unknown;
+-					break;
+-				}
+-			}
+-		}
+-		else if (!strncasecmp(vName, "ufs922", 6))
+-		{
+-			vBoxType = Ufs922;
+-		}
+-		else if (!strncasecmp(vName, "ufc960", 6))
+-		{
+-			vBoxType = Ufc960;
+-		}
+-		else if (!strncasecmp(vName, "ufs912", 6))
+-		{
+-			vBoxType = Ufs912;
+-		}
+-		else if (!strncasecmp(vName, "ufs913", 6))
+-		{
+-			vBoxType = Ufs912;
+-		}
+-		else if (!strncasecmp(vName, "tf7700hdpvr", 11))
+-		{
+-			vBoxType = Tf7700;
+-		}
+-		else if (!strncasecmp(vName, "hl101", 5))
+-		{
+-			vBoxType = Hl101;
+-		}
+-		else if (!strncasecmp(vName, "vip1-v2", 7))
+-		{
+-			vBoxType = Vip2;
+-		}
+-		else if (!strncasecmp(vName, "vip2-v1", 7))
+-		{
+-			vBoxType = Vip2;
+-		}
+-		else if ((!strncasecmp(vName, "hdbox", 5)) || (!strncasecmp(vName, "octagon1008", 11)) || (!strncasecmp(vName, "atevio7500", 10)) || (!strncasecmp(vName, "hs7110", 6)) || (!strncasecmp(vName, "hs7420", 6)) || (!strncasecmp(vName, "hs7810a", 7)) || (!strncasecmp(vName, "hs7119", 6)) || (!strncasecmp(vName, "hs7429", 6)) || (!strncasecmp(vName, "hs7819", 6)))
+-		{
+-			vBoxType = Fortis;
+-		}
+-		else if ((!strncasecmp(vName, "atemio520", 9)) || (!strncasecmp(vName, "atemio530", 9)))
+-		{
+-			vBoxType = CNBox;
+-		}
+-		else if (!strncasecmp(vName, "hs5101", 6))
+-		{
+-			vBoxType = Hs5101;
+-		}
+-		else if ((!strncasecmp(vName, "spark", 5)) || (!strncasecmp(vName, "spark7162", 9)))
+-		{
++	if (vLen > 0) {
++		vName[vLen-1] = '\0';
++
++		printf("Model: %s\n", vName);
++
++		if (!strncasecmp(vName,"spark", 6))
++			vBoxType = Spark;
++		else if (!strncasecmp(vName,"spark7162", 9))
+ 			vBoxType = Spark;
+-		}
+-		else if (!strncasecmp(vName, "adb_box", 7))
+-		{
+-			vBoxType = Adb_Box;
+-		}
+-		else if ((!strncasecmp(vName, "cuberevo", 8)) || (!strncasecmp(vName, "cuberevo-mini", 13)) || (!strncasecmp(vName, "cuberevo-mini2", 14)) || (!strncasecmp(vName, "cuberevo-mini-fta", 17)) || (!strncasecmp(vName, "cuberevo-250hd", 14)) || (!strncasecmp(vName, "cuberevo-2000hd", 15)) || (!strncasecmp(vName, "cuberevo-9500hd", 15)) || (!strncasecmp(vName, "cuberevo-3000hd", 14)))
+-		{
+-			vBoxType = Cuberevo;
+-		}
+-		else if (!strncasecmp(vName, "vitamin_hd5000", 14))
+-		{
+-			vBoxType = Vitamin_HD5000;
+-		}
+ 		else
+-		{
+ 			vBoxType = Unknown;
+-		}
+-		if (disp)
+-		{
+-			printf("Receiver: %s\n\n", vName);
+-		}
+ 	}
++
++	printf("vBoxType: %d\n", vBoxType);
++
+ 	return vBoxType;
+ }
+ 
+-int main(int argc, char *argv[])
++int main (int argc, char* argv[])
+ {
+-	Context_t context;
+-	int i;
+ 	eBoxType vBoxType = Unknown;
++	Context_t context;
++
++	printf("%s: SW Version %s\n", argv[0], sw_version);
+ 
+-	if (argc > 1)
+-	{
+-		i = 1;
+-		while (argc > i) //scan the command line for -V or --verbose
+-		{
+-			if ((strcmp(argv[i], "-V") == 0) || (strcmp(argv[i], "--verbose") == 0))
+-			{
+-				/* switch verbose on */
+-				disp = 1;
+-			}
+-			i++;
+-		}
+-	}
+-	
+-	if (disp)
+-	{
+-		printf("%s Version %s\n", argv[0], sw_version);
+-	}
+ 	vBoxType = getModel();
+ 
+-	if (searchModel(&context, vBoxType) != 0)
+-	{
+-		printf("Model not found\n");
+-		return -1;
+-	}
+-	processCommand(&context, argc, argv);
++	if(!searchModel(&context, vBoxType)) {
++		printf("Selected Model: %s\n", ((Model_t*)context.m)->Name);
+ 
+-	exit(reason & 0x07);
++		processCommand(&context, argc, argv);
++ 	}
++	else
++		printf("Warning: Model not found in available models!\n");
++ 
++	return 0;
+ }
+ // vim:ts=4
+diff -Naur sh4-apps-master/tools/fp_control/global.c sh4-apps-prince/tools/fp_control/global.c
+--- sh4-apps-master/tools/fp_control/global.c	2019-08-27 22:19:07.000000000 +0430
++++ sh4-apps-prince/tools/fp_control/global.c	2019-08-28 01:52:14.765292442 +0430
+@@ -1,18 +1,18 @@
+ /*
+  * global.c
+- *
++ * 
+  * (c) 2009 dagobert/donald@teamducktales
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+- * the Free Software Foundation; either version 2 of the License, or
++ * the Free Software Foundation; either version 2 of the License, or 
+  * (at your option) any later version.
+- *
++ * 
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+- *
++ * 
+  * You should have received a copy of the GNU General Public License
+  * along with this program; if not, write to the Free Software
+  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+@@ -29,46 +29,28 @@
+ 
+ #include "global.h"
+ 
++/* #define E2TIMERSXML "/usr/local/share/enigma2/timers.xml" */
+ #define E2TIMERSXML "/etc/enigma2/timers.xml"
+ #define E2WAKEUPTIME "/proc/stb/fp/wakeup_time"
+ 
+-#define NEUTRINO_TIMERS "/var/tuxbox/config/timerd.conf"
++#define NEUTRINO_TIMERS "/usr/local/share/config/timerd.conf"
+ 
+ #define CONFIG "/etc/vdstandby.cfg"
+-char *sDisplayStd = "%a %d %H:%M:%S";
++char * sDisplayStd = "%a %d %H:%M:%S";
+ 
+ #define WAKEUPFILE "/var/wakeup"
+ #define WAS_TIMER_WAKEUP "/proc/stb/fp/was_timer_wakeup"
+ 
+ #define E2_WAKEUP_TIME_PROC
+-int verbose = 0; //verbose is off by default
+-
+-static Model_t *AvailableModels[] =
+-{
+-	&Ufs910_1W_model,
+-	&Ufs910_14W_model,
+-	&UFS922_model,
+-	&Fortis_model,
+-	&HL101_model,
+-	&VIP2_model,
+-	&Hs5101_model,
+-	&UFS912_model,
+-	&UFC960_model,
+-	&Spark_model,
+-	&Adb_Box_model,
+-	&Cuberevo_model,
+-	&CNBOX_model,
+-	&Vitamin_model,
+-	NULL
+-};
+-
+-#if 0
+-static time_t read_e2_wakeup(time_t curTime)
++#ifdef E2_WAKEUP_TIME_PROC
++static time_t read_e2_timers(time_t curTime)
+ {
+-	char line[12];
++	char   line[12];
+ 	time_t recordTime = LONG_MAX;
+-	FILE *fd = fopen(E2WAKEUPTIME, "r");
+-	printf("Getting Enigma2 wakeup time");
++	FILE   *fd        = fopen (E2WAKEUPTIME, "r");
++
++	printf("Getting enigma2 wakeup time");
++
+ 	if (fd > 0)
+ 	{
+ 		fgets(line, 11, fd);
+@@ -76,76 +58,74 @@
+ 		if (recordTime <= curTime)
+ 		{
+ 			recordTime = LONG_MAX;
+-			printf(" - Got time, but in the past (ignoring)\n");
++			printf(" - Got timer but in the past (ignoring)\n");
+ 		}
+ 		else
+ 			printf(" - Done\n");
+ 		fclose(fd);
+ 	}
+ 	else
+-	{
+ 		printf(" - Error reading %s\n", E2WAKEUPTIME);
+-	}
++
+ 	return recordTime;
+ }
+ #else
+ static time_t read_e2_timers(time_t curTime)
+ {
+-	char recordString[12];
+-	char line[1000];
++	char   recordString[11];
++	char   line[1000];
+ 	time_t recordTime = LONG_MAX;
+-	FILE *fd = fopen(E2TIMERSXML, "r");
+-	printf("Getting 1st Enigma2 timer");
++	FILE   *fd        = fopen (E2TIMERSXML, "r");
++
++	printf("Getting enigma2 wakeup time");
++
+ 	if (fd > 0)
+ 	{
+-		while (fgets(line, 999, fd) != NULL)
++		while(fgets(line, 999, fd) != NULL)
+ 		{
+-			line[999] = '\0';
+-			if (!strncmp("<timer begin=\"", line, 14))
++			line[999]='\0';
++			if (!strncmp("<timer begin=\"",line,14) )
+ 			{
+ 				unsigned long int tmp = 0;
+-				strncpy(recordString, line + 14, 10);
++				strncpy(recordString, line+14, 10);
+ 				recordString[11] = '\0';
+ 				tmp = atol(recordString);
+ 				recordTime = (tmp < recordTime && tmp > curTime ? tmp : recordTime);
+ 			}
+ 		}
+-		if (recordTime == LONG_MAX)
+-		{
+-			printf(" (none set)");
+-			recordTime = -1;
+-		}
+-		else
+-		{
+-			recordTime -= Vwakeup;
+-		}
+ 		printf(" - Done\n");
+-		fclose(fd);
+ 	}
+ 	else
+-	{
+ 		printf(" - Error reading %s\n", E2TIMERSXML);
+-	}
++
++
+ 	return recordTime;
+ }
+ #endif
+ 
+ static time_t read_neutrino_timers(time_t curTime)
+ {
+-	char line[1000];
++	char   line[1000];
+ 	time_t recordTime = LONG_MAX;
+-	FILE *fd = fopen(NEUTRINO_TIMERS, "r");
+-	printf("Getting 1st neutrino timer");
++	FILE   *fd        = fopen (NEUTRINO_TIMERS, "r");
++
++	printf("Getting neutrino wakeup time");
++
+ 	if (fd > 0)
+ 	{
+-		while (fgets(line, 999, fd) != NULL)
++		printf("opening %s\n", NEUTRINO_TIMERS);
++		
++		while(fgets(line, 999, fd) != NULL)
+ 		{
+-			line[999] = '\0';
+-			if (strstr(line, "ALARM_TIME_") != NULL)
++			line[999]='\0';
++
++			if (strstr(line, "ALARM_TIME_") != NULL )
+ 			{
+ 				time_t tmp = 0;
+-				char *str;
++				char* str;
++
+ 				str = strstr(line, "=");
++
+ 				if (str != NULL)
+ 				{
+ 					tmp = atol(str + 1);
+@@ -158,26 +138,24 @@
+ 	}
+ 	else
+ 		printf(" - Error reading %s\n", NEUTRINO_TIMERS);
+-	if (recordTime != LONG_MAX)
+-	{
+-		int wakeupDecrement = Vwakeup;
+-		int platzhalter;
+-		char *dummy;
+ 
+-		checkConfig(&platzhalter, &platzhalter, &dummy, &wakeupDecrement);
++	if (recordTime != LONG_MAX) {
++		int wakeupDecrement = 5*60;
++		int platzhalter;
++		checkConfig(&platzhalter, &platzhalter, &platzhalter, &wakeupDecrement);
+ 		recordTime -= wakeupDecrement;
+ 	}
++
+ 	return recordTime;
+ }
+ 
+-// Write the wakeup time to a file to allow detection of wakeup cause
+-// in case fp does not support wakeup cause
++// Write the wakeup time to a file to allow detection of wakeupcause if fp does not support
+ static void write_wakeup_file(time_t wakeupTime)
+ {
+ 	FILE *wakeupFile;
+-	wakeupFile = fopen(WAKEUPFILE, "w");
+-	if (wakeupFile)
+-	{
++
++	wakeupFile = fopen(WAKEUPFILE,"w");
++	if (wakeupFile) {
+ 		fprintf(wakeupFile, "%ld", wakeupTime);
+ 		fclose(wakeupFile);
+ 		system("sync");
+@@ -188,56 +166,49 @@
+ {
+ 	time_t wakeupTime = LONG_MAX;
+ 	FILE  *wakeupFile;
+-	wakeupFile = fopen(WAKEUPFILE, "r");
+-	if (wakeupFile)
+-	{
+-		fscanf(wakeupFile, "%ld", &wakeupTime);
++
++	wakeupFile = fopen(WAKEUPFILE,"r");
++	if (wakeupFile) {
++		fscanf(wakeupFile,"%ld", &wakeupTime);
+ 		fclose(wakeupFile);
+ 	}
++
+ 	return wakeupTime;
+ }
+ 
+ #define FIVE_MIN 300
+ 
+-// Important: system has to have a valid current time
+-// This is a little bit tricky, we can only detect if the time is valid
++// Important: system has to have a vaild current time
++// This is a little bit triggy, we can only detect if the time is valid
+ // and this check happens +-5min arround the timer
+ int getWakeupReasonPseudo(eWakeupReason *reason)
+ {
+ 	time_t curTime    = 0;
+ 	time_t wakeupTime = LONG_MAX;
+ 
+-	printf("%s: IMPORTANT: Valid Linux System Time is mandatory\n", __func__);
++	printf("getWakeupReasonPseudo: IMPORTANT: Valid Linux System Time is mandetory\n");
+ 
+ 	time(&curTime);
+ 	wakeupTime = read_wakeup_file();
++
+ 	if ((curTime - FIVE_MIN) < wakeupTime && (curTime + FIVE_MIN) > wakeupTime)
+-	{
+ 		*reason = TIMER;
+-	}
+ 	else
+-	{
+ 		*reason = NONE;
+-	}
+ 	return 0;
+ }
+ 
+ int syncWasTimerWakeup(eWakeupReason reason)
+ {
+ 	FILE *wasTimerWakeupProc = fopen(WAS_TIMER_WAKEUP, "w");
+-	if (wasTimerWakeupProc == NULL)
+-	{
++	if(wasTimerWakeupProc == NULL) {
+ 		fprintf(stderr, "setWakeupReason failed to open %s\n", WAS_TIMER_WAKEUP);
+ 		return -1;
+ 	}
+ 	if (reason == TIMER)
+-	{
+ 		fwrite("1\n", 2, 1, wasTimerWakeupProc);
+-	}
+ 	else
+-	{
+ 		fwrite("0\n", 2, 1, wasTimerWakeupProc);
+-	}
+ 	fclose(wasTimerWakeupProc);
+ 	return 0;
+ }
+@@ -247,198 +218,125 @@
+ // If no wakeup time can be found LONG_MAX will be returned
+ time_t read_timers_utc(time_t curTime)
+ {
+-	time_t wakeupTime = LONG_MAX;  // flag no timer read (yet)
+-	wakeupTime = read_e2_timers(curTime);  // get next e2timer
+-	if (wakeupTime == LONG_MAX) // if none
+-	{
+-		wakeupTime = read_neutrino_timers(curTime);  // try neutrino timer
+-	}
++	time_t wakeupTime = LONG_MAX;
++
++	wakeupTime = read_e2_timers(curTime);
++
++	if (wakeupTime == LONG_MAX)
++		wakeupTime = read_neutrino_timers(curTime);
++
+ 	write_wakeup_file(wakeupTime);
++
+ 	return wakeupTime;
+ }
+ 
+-// This function returns a time in the future
++// This functio returns a time in the future
+ time_t read_fake_timer_utc(time_t curTime)
+ {
+ 	struct tm tsWake;
+ 	struct tm *ts;
+ 	time_t wakeupTime = LONG_MAX;
+ 
+-	ts = gmtime(&curTime);
++	ts = gmtime (&curTime);
++
+ 	tsWake.tm_hour = ts->tm_hour;
+ 	tsWake.tm_min  = ts->tm_min;
+ 	tsWake.tm_sec  = ts->tm_sec;
+ 	tsWake.tm_mday = ts->tm_mday;
+ 	tsWake.tm_mon  = ts->tm_mon;
+ 	tsWake.tm_year = ts->tm_year + 1;
++
+ 	wakeupTime = mktime(&tsWake);
++
+ 	return wakeupTime;
+ }
+ /* ******************************************** */
+ 
+ double modJulianDate(struct tm *theTime)
+-{ // struct tm (date) -> MJD since epoch
++{
++
+ 	double date;
+ 	int month;
+-	int day;
++	int day; 
+ 	int year;
+ 
+ 	year  = theTime->tm_year + 1900;
+ 	month = theTime->tm_mon + 1;
+ 	day   = theTime->tm_mday;
+-	date = day - 32076 +
+-		   1461 * (year + 4800 + (month - 14) / 12) / 4 +
+-		   367 * (month - 2 - (month - 14) / 12 * 12) / 12 -
+-		   3 * ((year + 4900 + (month - 14) / 12) / 100) / 4;
+-	date += (theTime->tm_hour + 12.0) / 24.0;
+-	date += (theTime->tm_min) / 1440.0;
+-	date += (theTime->tm_sec) / 86400.0;
+-	date -= 2400000.5;
+-	return date;
+-}
+ 
+-int get_GMT_offset(struct tm theTime)
+-{
+-	time_t theoffsetTime;
+-	time_t theinputTime;
+-	int gmt_offset;
+-
+-	// Calculate time_t of input time theTime
+-//	theinputTime = (((int)modJulianDate(&theTime) & 0xffff) - 40587) * 86400;  // mjd starts on midnight 17-11-1858 which is 40587 days before unix epoch
+-	theinputTime = ((int)modJulianDate(&theTime) - 40587) * 86400;  // mjd starts on midnight 17-11-1858 which is 40587 days before unix epoch
+-	theinputTime += theTime.tm_hour * 3600;
+-	theinputTime += theTime.tm_min * 60;
+-	theinputTime += theTime.tm_sec;
+-
+-	// Get time_t of input time theTime minus GMT offset
+-	theTime.tm_isdst = -1; /* say mktime that we do not know */
+-	theoffsetTime = mktime(&theTime);
+-
+-	gmt_offset = theinputTime - theoffsetTime;
+-	return gmt_offset;
+-}
+-
+-#if 0
+-#define LEAPYEAR(year) (!((year) % 4) && (((year) % 100) || !((year) % 400)))
+-#define YEARSIZE(year) (LEAPYEAR(year) ? 366 : 365)
+-static const int _ytab[2][12] =
+-{
+-	{ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
+-	{ 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+-};
+-
+-int get_ndays(struct tm *theTime)
+-{ // struct tm (date) -> number of days since linux epoch
+-	int ndays = 0;
+-	int year;
+-	int i;
++	date = day - 32076 + 
++		1461 * (year + 4800 + (month - 14)/12)/4 +
++		367 * (month - 2 - (month - 14)/12*12)/12 - 
++		3 * ((year + 4900 + (month - 14)/12)/100)/4;
++
++	date += (theTime->tm_hour + 12.0)/24.0;
++	date += (theTime->tm_min)/1440.0;
++	date += (theTime->tm_sec)/86400.0;
+ 
+-	year  = theTime->tm_year - 1; // do not count current year
+-	while (year >= 70)
+-	{
+-		ndays += 365;
+-		if (LEAPYEAR(year))
+-		{
+-			ndays++;
+-		}
+-		year--;
+-	}
+-	for (i = 0; i < theTime->tm_mon; i++)
+-	{
+-		ndays += _ytab[0][i];
+-	}
+-	if ((LEAPYEAR(theTime->tm_year)) && (theTime->tm_mon > 2))
+-	{
+-		ndays++;
+-	}
+-	ndays += theTime->tm_mday;
+-	printf("%s ndays: %d\n", __func__, ndays);
+-	printf("%s MJD: %d\n", __func__, ndays + 40587);
+-	return ndays;
++	date -= 2400000.5;
++
++	return date;
+ }
+-#endif
+ 
+ /* ********************************************** */
+ 
+-int searchModel(Context_t *context, eBoxType type)
+-{
++int searchModel(Context_t  *context, eBoxType type) {
+ 	int i;
+ 	for (i = 0; AvailableModels[i] != NULL; i++)
+-		if (AvailableModels[i]->Type == type)
+-		{
++
++		if (AvailableModels[i]->Type == type) {
+ 			context->m = AvailableModels[i];
+ 			return 0;
+ 		}
++
+ 	return -1;
+ }
+ 
+-int checkConfig(int *display, int *display_custom, char **timeFormat, int *wakeup)
+-{
++int checkConfig(int* display, int* display_custom, char** timeFormat, int* wakeup) {
+ 	const int MAX = 100;
+-	char buffer[MAX];
++	char puffer[MAX];
++	
+ 	*display = 0;
+ 	*display_custom = 0;
+-	*timeFormat = "Unknown";
+-	*wakeup = 5 * 60;
+-	FILE *fd_config = fopen(CONFIG, "r");  //read box /etc/vdstandby.cfg
++	*timeFormat = NULL;
++	*wakeup = 5*60;
++	
++	FILE *fd_config = fopen(CONFIG, "r");
++
++	printf("%s\n", __func__);
+ 
+ 	if (fd_config == NULL)
+ 	{
+-		Vwakeup = 5 * 60; //default wakeupdecrement is 5 minutes
+-
+-		printf("Config file (%s) not found,\nusing standard config:", CONFIG);
+-		printf("Config:\nDisplay: %d              Time format: %d\n", *display, *display_custom);
+-		printf("Displaycustom: %s  Wakeupdecrement: %d minutes %d seconds\n", *timeFormat, *wakeup/60, *wakeup%60);
++		printf("config file (%s) not found, use standard config", CONFIG);
++		printf("configs: DISPLAY = %d, DISPLAYCUSTOM = %d, CUSTOM = %s, WAKEUPDECREMENT  %d\n", 
++			*display, *display_custom, *timeFormat, *wakeup);
+ 		return -1;
+ 	}
+-	while (fgets(buffer, MAX, fd_config))
+-	{
+-		if (!strncmp("DISPLAY=", buffer, 8))
+-		{
+-			char *option = &buffer[8];
+-			if (!strncmp("TRUE", option, 4))
+-			{
++	
++	while (fgets(puffer, MAX, fd_config)) {
++		if (!strncmp("DISPLAY=", puffer, 8)) {
++			char * option = &puffer[8];
++			if (!strncmp("TRUE", option, 2))
+ 				*display = 1;
+-			}
+-			else
+-			{
+-				*display = 0;
+-			}
+-		}
+-		else if (!strncmp("DISPLAYCUSTOM=", buffer, 14))
+-		{
+-			char *option = &buffer[14];  //get buffer from character 14 on
++
++		} else if (!strncmp("DISPLAYCUSTOM=", puffer, 14)) {
++			char * option = &puffer[14];
+ 			*display_custom = 1;
+ 			*timeFormat = strdup(option);
+ 		}
+-		else if (!strncmp("WAKEUPDECREMENT=", buffer, 16))
+-		{
+-			char *option = &buffer[16];
++		else if (!strncmp("WAKEUPDECREMENT=", puffer, 16)) {
++			char * option = &puffer[16];
+ 			*wakeup = atoi(option);
+ 		}
+ 	}
++	
+ 	if (*timeFormat == NULL)
+-	{
+-		*timeFormat = "?";
+-	}
+-	if (disp)
+-	{
+-		printf("Configuration of receiver:\n");
+-		printf("Display      : %d  Time format: %s", *display, *timeFormat);
+-		printf("Displaycustom: %d  Wakeupdecrement: %d minute(s)", *display_custom, *wakeup / 60);
+-		if (*wakeup % 60 != 0)
+-		{
+-			printf(" %d second(s)\n", *wakeup % 60);
+-		}
+-		else
+-		{
+-			printf("\n");
+-		}
+-	}
+-	Vdisplay = *display;
+-	VtimeFormat = *timeFormat;
+-	Vdisplay_custom = *display_custom;
+-	Vwakeup = *wakeup;
++		*timeFormat = sDisplayStd;
++	
++	printf("configs: DISPLAY = %d, DISPLAYCUSTOM = %d, CUSTOM = %s, WAKEUPDECREMENT  %d\n", 
++		*display, *display_custom, *timeFormat, *wakeup);
++	
+ 	fclose(fd_config);
++	
+ 	return 0;
+ }
+diff -Naur sh4-apps-master/tools/fp_control/global.h sh4-apps-prince/tools/fp_control/global.h
+--- sh4-apps-master/tools/fp_control/global.h	2019-08-27 22:19:07.000000000 +0430
++++ sh4-apps-prince/tools/fp_control/global.h	2019-08-28 01:52:14.765292442 +0430
+@@ -7,141 +7,71 @@
+ #define false 0
+ #endif
+ 
+-#define VFDDISPLAYCHARS         0xc0425a00
+-#define VFDBRIGHTNESS           0xc0425a03
+-#define VFDPWRLED               0xc0425a04 /* added by zeroone, also used in nuvoton.h; set PowerLed Brightness on Fortis*/
+-#define VFDDISPLAYWRITEONOFF    0xc0425a05
+-#define VFDICONDISPLAYONOFF     0xc0425a0a
+-
+-#define VFDTEST                 0xc0425af0
+-#define VFDGETBLUEKEY           0xc0425af1 /* Spark specific */
+-#define VFDSETBLUEKEY           0xc0425af2 /* Spark specific */
+-#define VFDGETSTBYKEY           0xc0425af3 /* Spark specific */
+-#define VFDSETSTBYKEY           0xc0425af4 /* Spark specific */
+-#define VFDPOWEROFF             0xc0425af5 /* Spark specific */
+-#define VFDSETPOWERONTIME       0xc0425af6 /* Spark specific */
+-#define VFDGETVERSION           0xc0425af7
+-#define VFDGETSTARTUPSTATE      0xc0425af8 /* Spark specific */
+-#define VFDLEDBRIGHTNESS        0xc0425af8 /* ufs912 */
+-#define VFDGETWAKEUPMODE        0xc0425af9 /* Fortis, does the same as spark VFDGETSTARTUPSTATE */
+-#define VFDGETTIME              0xc0425afa
+-#define VFDSETTIME              0xc0425afb
+-#define VFDSTANDBY              0xc0425afc
+-#define VFDREBOOT               0xc0425afd /* ufs912 */
+-#define VFDSETTIME2             0xc0425afd /* Spark specific */
+-#define VFDSETLED               0xc0425afe
+-#define VFDSETMODE              0xc0425aff /* ufs912, 922, Fortis vitamin_hd5000 ->unset compat mode */
+-#define VFDDISPLAYCLR           0xc0425b00
+-#define VFDGETLOOPSTATE         0xc0425b01 /* Spark specific */
+-#define VFDSETLOOPSTATE         0xc0425b02 /* Spark specific */
+-#define VFDGETWAKEUPTIME        0xc0425b03 /* Fortis/nuvoton, Cuberevo/micom specific */
+-#define VFDSETTIMEFORMAT        0xc0425b04 /* Fortis specific */
+-#define VFDGETTIMEFORMAT        0xc0425b05 /* Fortis specific */
++#define VFDGETTIME		0xc0425afa
++#define VFDSETTIME		0xc0425afb
++#define VFDSTANDBY		0xc0425afc
++#define VFDREBOOT		0xc0425afd
++#define VFDSETLED		0xc0425afe
++#define VFDICONDISPLAYONOFF	0xc0425a0a
++#define VFDBRIGHTNESS		0xc0425a03
++#define VFDDISPLAYCLR		0xc0425b00
++/*spark*/
++#define VFDGETSTARTUPSTATE	0xc0425af8
+ 
+-//Comment next line if you do not want the -ms option
+-#define MODEL_SPECIFIC 1
+-
+-struct vfd_ioctl_data
+-{
++struct vfd_ioctl_data {
+ 	unsigned char start;
+ 	unsigned char data[64];
+ 	unsigned char length;
+ };
+ 
+-typedef enum {NONE, POWERON, STANDBY, TIMER, POWER_SWITCH, UNK1, UNK2, UNK3} eWakeupReason;
++typedef enum {NONE, TIMER} eWakeupReason;
++
++typedef enum {Unknown, Spark} eBoxType;
+ 
+-typedef enum
+-{
+-	Unknown,
+-	Ufs910_1W,
+-	Ufs910_14W,
+-	Ufs922,
+-	Ufc960,
+-	Tf7700,
+-	Hl101,
+-	Vip2,
+-	Fortis,
+-	Hs5101,
+-	Ufs912,
+-	Spark,
+-	Cuberevo,
+-	Adb_Box,
+-	CNBox,
+-	Vitamin_HD5000
+-} eBoxType;
+-
+-typedef struct Context_s
+-{
+-	/* Model_t */
+-	void *m;  /* instance data */
+-	int  fd;  /* filedescriptor of fd */
++typedef struct Context_s {
++	void* /* Model_t */  *m; /* instance data */
++	int                  fd; /* filedescriptor of fd */
+ } Context_t;
+ 
+-typedef struct Model_s
+-{
+-	char    *Name;
++typedef struct Model_s {
++	char *   Name;
+ 	eBoxType Type;
+-	int      (*Init)             (Context_t *context);
+-	int      (*Clear)            (Context_t *context);
+-	int      (*Usage)            (Context_t *context, char *prg_name, char *cmd_name);
+-	int      (*SetTime)          (Context_t *context, time_t *theGMTTime);
+-	int      (*SetSTime)         (Context_t *context, time_t *theGMTTime);
+-	int      (*GetTime)          (Context_t *context, time_t *theGMTTime);
+-	int      (*SetWTime)         (Context_t *context, time_t *theGMTTime);
+-	int      (*GetWTime)         (Context_t *context, time_t *theGMTTime);
+-	int      (*SetTimer)         (Context_t *context, time_t *theGMTTime);
+-	int      (*GetTimer)         (Context_t *context, time_t *theGMTTime);
+-	int      (*Shutdown)         (Context_t *context, time_t *shutdownTimeGMT);
+-	int      (*Reboot)           (Context_t *context, time_t *rebootTimeGMT);
+-	int      (*Sleep)            (Context_t *context, time_t *wakeUpGMT);
+-	int      (*SetText)          (Context_t *context, char *theText);
+-	int      (*SetLed)           (Context_t *context, int which, int on);
+-	int      (*SetIcon)          (Context_t *context, int which, int on);
+-	int      (*SetBrightness)    (Context_t *context, int brightness);
+-	int      (*GetWakeupReason)  (Context_t *context, eWakeupReason *reason);
+-	int      (*SetLight)         (Context_t *context, int on);
+-	int      (*Exit)             (Context_t *context);
+-	int      (*SetLedBrightness) (Context_t *context, int brightness);
+-	int      (*GetVersion)       (Context_t *context, int *version);
+-	int      (*SetRF)            (Context_t *context, int on);
+-	int      (*SetFan)           (Context_t *context, int on);
+-	int      (*SetDisplayTime)   (Context_t *context, int on);
+-	int      (*SetTimeMode)      (Context_t *context, int twentyFour);
+-#if defined MODEL_SPECIFIC
+-	int      (*ModelSpecific)    (Context_t *context, char len, unsigned char *testdata); /* added by audioniek */
+-#endif
+-	void     *private;
++	int     (* Init)           (Context_t* context);
++	int     (* Clear)          (Context_t* context);
++	int     (* Usage)          (Context_t* context, char* prg_name);
++	int     (* SetTime)        (Context_t* context, time_t* theGMTTime);
++	int     (* GetTime)        (Context_t* context, time_t* theGMTTime);
++	int     (* SetTimer)       (Context_t* context, time_t* theGMTTime);
++	int     (* GetTimer)       (Context_t* context, time_t* theGMTTime);
++	int     (* SetDisplayTime) (Context_t* context, int on);
++	int     (* Shutdown)       (Context_t* context, time_t* shutdownTimeGMT);
++	int     (* Reboot)         (Context_t* context, time_t* rebootTimeGMT);
++	int     (* Sleep)          (Context_t* context, time_t* wakeUpGMT);
++	int     (* SetText)        (Context_t* context, char* theText);
++	int     (* SetLed)         (Context_t* context, int which, int on);
++	int     (* SetIcon)        (Context_t* context, int which, int on);
++	int     (* SetBrightness)  (Context_t* context, int brightness);
++	int     (* SetPwrLed)  	   (Context_t* context, int pwrled); /* added by zeroone; set PowerLed Brightness on HDBOX*/
++	int     (* SetLight)       (Context_t* context, int on);
++	int     (* Exit)           (Context_t* context);
++	int     (* GetWakeupReason)(Context_t* context, eWakeupReason* reason);
++    void* private;
+ } Model_t;
+ 
+-extern	Model_t Ufs910_1W_model;
+-extern	Model_t Ufs910_14W_model;
+-extern	Model_t UFS912_model;
+-extern	Model_t UFS922_model;
+-extern	Model_t UFC960_model;
+-extern	Model_t Fortis_model;
+-extern	Model_t HL101_model;
+-extern	Model_t VIP2_model;
+-extern	Model_t Hs5101_model;
+ extern	Model_t Spark_model;
+-extern	Model_t Adb_Box_model;
+-extern	Model_t Cuberevo_model;
+-extern	Model_t CNBOX_model;
+-extern	Model_t Vitamin_model;
+-
+-double modJulianDate(struct tm *theTime);
+-int    get_GMT_offset(struct tm theTime);
+-time_t read_timers_utc(time_t curTime);
+-time_t read_fake_timer_utc(time_t curTime);
+-int    searchModel(Context_t *context, eBoxType type);
+-int    checkConfig(int *display, int *display_custom, char **timeFormat, int *wakeup);
+-
+-int    getWakeupReasonPseudo(eWakeupReason *reason);
+-int    syncWasTimerWakeup(eWakeupReason reason);
+-
+-int    disp; //controls screen output
+-int    Vdisplay;
+-int    Vdisplay_custom;
+-char   *VtimeFormat;
+-int    Vwakeup;
++
++static Model_t * AvailableModels[] = {
++	&Spark_model,
++	NULL
++};
++
++double	modJulianDate(struct tm *theTime);
++time_t	read_timers_utc(time_t curTime);
++time_t	read_fake_timer_utc(time_t curTime);
++int searchModel(Context_t  *context, eBoxType type);
++int checkConfig(int* display, int* display_custom, char** timeFormat, int* wakeup);
++
++int getWakeupReasonPseudo(eWakeupReason *reason);
++int syncWasTimerWakeup(eWakeupReason reason);
+ 
+ #endif
+diff -Naur sh4-apps-master/tools/fp_control/Makefile.am sh4-apps-prince/tools/fp_control/Makefile.am
+--- sh4-apps-master/tools/fp_control/Makefile.am	2019-08-27 22:19:07.000000000 +0430
++++ sh4-apps-prince/tools/fp_control/Makefile.am	2019-08-28 01:52:14.769292635 +0430
+@@ -1,24 +1,5 @@
+ bin_PROGRAMS = fp_control
+ 
+-fp_control_SOURCES = \
+-	fp_control.c \
+-	global.c \
+-	Ufs910_1W.c \
+-	Ufs910_14W.c \
+-	Ufs912.c \
+-	Ufs922.c \
+-	Ufc960.c \
+-	Fortis.c \
+-	Hl101.c \
+-	Vip2.c \
+-	Homecast5101.c \
+-	Spark.c \
+-	Cuberevo.c \
+-	Adb_Box.c \
+-	Cnbox.c \
+-	Vitamin_HD5000.c
+-
++fp_control_SOURCES = fp_control.c global.c Spark.c
+ AM_CFLAGS = -Wall
+ AM_LDFLAGS = -lrt
+-ACLOCAL_AMFLAGS = -I m4
+-
+diff -Naur sh4-apps-master/tools/fp_control/Spark.c sh4-apps-prince/tools/fp_control/Spark.c
+--- sh4-apps-master/tools/fp_control/Spark.c	2019-08-27 22:19:07.000000000 +0430
++++ sh4-apps-prince/tools/fp_control/Spark.c	2019-08-28 01:52:14.769292635 +0430
+@@ -10,30 +10,16 @@
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program; if not, write to the Free Software
+  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+  *
+- ****************************************************************************
+- *
+- * Changes
+- *
+- * Date     By              Description
+- * --------------------------------------------------------------------------
+- * 20130909 Audioniek       Get wake up reason made functional.
+- * 20130910 Audioniek       Set timer polished.
+- * 20130911 Audioniek       Shutdown polished.
+- * 20130911 Audioniek       Reboot built.
+- * 20150404 Audioniek       -tm added for DVFD models.
+- * 20150410 Audioniek       Awareness of VFD or DVFD front panel versions
+- *                          added, including time mode on DVFD.
+- *
+- ****************************************************************************/
++ */
+ 
+-/* ******************* includes ************************ */
++/******************** includes ************************ */
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -48,866 +34,496 @@
+ #include "global.h"
+ #include "Spark.h"
+ 
+-static int Spark_setText(Context_t *context, char *theText);
+-int res;
+-unsigned int fp_type;
+-unsigned int time_mode;
++static int Spark_setText(Context_t* context, char* theText);
+ 
+-/* ******************* constants ************************ */
++/******************** constants ************************ */
+ 
+ #define cVFD_DEVICE "/dev/vfd"
+-#define cRTC_OFFSET_FILE "/proc/stb/fp/rtc_offset"
+-#define cMAXCharsSpark 8
+ 
+-typedef struct
+-{
+-	char    *arg;
+-	char    *arg_long;
+-	char    *arg_description;
+-} tArgs;
+-
+-tArgs vHArgs[] =
+-{
+-	{ "-e", "  --setTimer           ", "Args: [time date] (format: HH:MM:SS dd-mm-YYYY)" },
+-	{ "", "                         ", "      No arg:     Set the most recent timer from e2 or neutrino" },
+-	{ "", "                         ", "                  to the frontcontroller and shutdown" },
+-	{ "", "                         ", "      Arg time date: Set frontcontroller wake-up time to" },
+-	{ "", "                         ", "                  time, shutdown, and wake up at given time" },
+-	{ "-d", "  --shutdown           ", "Args: [time date] (format: HH:MM:SS dd-mm-YYYY)" },
+-	{ "", "                         ", "      No arg:     Shut down immediately" },
+-	{ "", "                         ", "      Arg time date: Shut down at given time/date" },
+-	{ "-r", "  --reboot             ", "Args: [time date] (format: HH:MM:SS dd-mm-YYYY)" },
+-	{ "", "                         ", "      No arg:     Reboot immediately (= -e current time+5 date today)" },
+-	{ "", "                         ", "      Arg time date: Reboot at given time/date (= -e time date)" },
+-	{ "-g", "  --getTime            ", "Args: None        Display currently set frontprocessor time" },
+-	{ "-gs", " --getTimeAndSet      ", "Args: None        Set system time to current frontprocessor time" },
+-	{ "-gt", " --getWTime           ", "Args: None        Get the current frontcontroller wake up time" },
+-	{ "-s", "  --setTime            ", "Args: time date   Format: HH:MM:SS dd-mm-YYYY" },
+-	{ "", "                         ", "                  Set the frontprocessor time (date ignored)" },
+-	{ "", "                         ", "      WARNING:    front panel date will be 01-01-1970!" },
+-	{ "-st", " --setWTime           ", "Args: time date   Format: HH:MM:SS dd-mm-YYYY" },
+-	{ "", "                         ", "                  Set the frontprocessor wake up time" },
+-	{ "-sst", "--setSystemTime      ", "Args: None        Set frontprocessor time to current system time" },
+-//	{ "-p", "  --sleep              ", "Args: time date   Format: HH:MM:SS dd-mm-YYYY\n\t\tReboot receiver via fp at given time" },
+-	{ "-t", "  --settext            ", "Arg : text        Show text in front panel display" },
+-	{ "-l", "  --setLed             ", "Args: LED# 0|1|2  LED#: off, on or blink" },
+-	{ "-i", "  --setIcon            ", "Args: icon# 0|1   Set an icon off or on" },
+-	{ "-b", "  --setBrightness      ", "Arg : 0..7        Set display brightness (VFD/DVFD only)" },
+-	{ "-w", "  --getWakeupReason    ", "Args: None        Get the wake up reason" },
+-	{ "-tm", " --time_mode          ", "Arg : 0|1         Clock display off|on (DVFD only)" },
+-	{ "-L", "  --setLight           ", "Arg : 0|1         Set display off|on" },
+-	{ "-c", "  --clear              ", "Args: None        Clear display, all icons and LEDs off" },
+-	{ "-v", "  --version            ", "Args: None        Get version info from frontprocessor" },
+-	{ "-V", "  --verbose            ", "Args: None        Verbose operation" },
+-#if defined MODEL_SPECIFIC
+-	{ "-ms ", "--set_model_specific ", "Args: long long   Model specific set function" },
+-#endif
+-	{ NULL, NULL, NULL }
+-};
++#define cMAXCharsVIP2 16
+ 
+ typedef struct
+ {
+-	int display;
+-	int display_custom;
+-	char *timeFormat;
++    int    display;
++    int    display_custom;
++    char*  timeFormat;
+ 
+-	time_t wakeupTime;
+-	int wakeupDecrement;
++    time_t wakeupTime;
++    int    wakeupDecrement;
+ } tSparkPrivate;
+ 
+ /* ******************* helper/misc functions ****************** */
+ 
+-/* Calculate the time value which we can pass to
+-    * the aotom fp. it is a mjd time (mjd=modified
+-    * julian date). mjd is relative to gmt so theGMTTime
+-    * must be in GMT/UTC.
+-    */
+-void Spark_calcAotomTime(time_t theGMTTime, char *destString)
++/* calculate the time value which we can pass to
++ * the aotom fp. its a mjd time (mjd=modified
++ * julian date). mjd is relativ to gmt so theGMTTime
++ * must be in GMT/UTC.
++ */
++void Spark_setAotomTime(time_t theGMTTime, char* destString)
+ {
+ 	/* from u-boot aotom */
+-	struct tm *now_tm;
+-	now_tm = localtime(&theGMTTime);
++	struct tm* now_tm;
++	now_tm = localtime (&theGMTTime);
++
++	printf("Set Time (UTC): %02d:%02d:%02d %02d-%02d-%04d\n",
++		now_tm->tm_hour, now_tm->tm_min, now_tm->tm_sec, now_tm->tm_mday, now_tm->tm_mon+1, now_tm->tm_year+1900);
+ 
+ 	double mjd = modJulianDate(now_tm);
+ 	int mjd_int = mjd;
+ 
+-	printf(" mjd %d\n", mjd_int);
+-
+-	destString[0] = ((mjd_int & 0xff00) >> 8);
+-	destString[1] = (mjd_int & 0xff);
++	destString[0] = ( mjd_int >> 8 );
++	destString[1] = ( mjd_int & 0xff );
+ 	destString[2] = now_tm->tm_hour;
+ 	destString[3] = now_tm->tm_min;
+ 	destString[4] = now_tm->tm_sec;
+ }
+ 
+-#if 0 //not used anywhere
+-unsigned long Spark_getAotomTime(char *aotomTimeString)
++unsigned long Spark_getAotomTime(char* aotomTimeString)
+ {
+-	unsigned int  mjd   = ((aotomTimeString[1] & 0xff) * 256) + (aotomTimeString[2] & 0xff);
+-	unsigned long epoch = ((mjd - 40587) * 86400); //01-01-1970
+-	unsigned int  hour  = aotomTimeString[3] & 0xff;
+-	unsigned int  min   = aotomTimeString[4] & 0xff;
+-	unsigned int  sec   = aotomTimeString[5] & 0xff;
+-	epoch += (hour * 3600 + min * 60 + sec);
+-//	printf("MJD = %d epoch = %ld, time = %02d:%02d:%02d\n", mjd, epoch, hour, min, sec);
++	unsigned int 	mjd 	= ((aotomTimeString[1] & 0xFF) * 256) + (aotomTimeString[2] & 0xFF);
++	unsigned long 	epoch 	= ((mjd - 40587)*86400);
++
++	unsigned int 	hour 	= aotomTimeString[3] & 0xFF;
++	unsigned int 	min 	= aotomTimeString[4] & 0xFF;
++	unsigned int 	sec 	= aotomTimeString[5] & 0xFF;
++
++	epoch += ( hour * 3600 + min * 60 + sec );
++
++	printf( "MJD = %d epoch = %ld, time = %02d:%02d:%02d\n", mjd,
++		epoch, hour, min, sec );
++
+ 	return epoch;
+ }
+-#endif
++
+ /* ******************* driver functions ****************** */
+ 
+-static int Spark_init(Context_t *context)
++static int Spark_init(Context_t* context)
+ {
+-	tSparkPrivate *private = malloc(sizeof(tSparkPrivate));
+-	int vFd;
+-	int t_mode;
+-	unsigned char strVersion[20];
+-	const char *dp_type[9] = { "Unknown", "VFD", "LCD", "DVFD", "LED", "?", "?", "?", "LBD" };
+-	const char *tm_type[2] = { "off", "on" };
+-
+-	vFd = open(cVFD_DEVICE, O_RDWR);
+-	if (vFd < 0)
+-	{
+-		fprintf(stderr, "Cannot open %s\n", cVFD_DEVICE);
+-		perror("");
+-	}
++    tSparkPrivate* private = malloc(sizeof(tSparkPrivate));
++    int vFd;
+ 
+-	((Model_t *)context->m)->private = private;
+-	memset(private, 0, sizeof(tSparkPrivate));
+-	checkConfig(&private->display, &private->display_custom, &private->timeFormat, &private->wakeupDecrement);
+-
+-	if (ioctl(vFd, VFDGETVERSION, &strVersion) < 0) // get version info (1x u32 4x u8)
+-	{
+-		perror("Get version info");
+-		return -1;
+-	}
+-	if (strVersion[0] != '\0')  /* if the version info is OK */
+-	{
+-		fp_type = strVersion[4];
+-	}
+-	else
+-	{
+-		fprintf(stderr, "Error reading version from fp\n");
+-	}
++    printf("%s\n", __func__);
+ 
+-	if (ioctl(vFd, VFDGETDISPLAYTIME, &t_mode) < 0)
+-	{
+-		time_mode = 1; //if no support from aotom, assume clock on
+-	}
+-	else
+-	{
+-		time_mode = t_mode;
+-	}
+-	if (disp)
+-	{
+-		printf("FP type is   : %s", dp_type[fp_type]);
+-		if (fp_type == 3)
+-		{
+-			printf(", time mode %s\n\n", tm_type[time_mode]);
+-		}
+-		else
+-		{
+-			printf("\n\n");
+-		}
++    vFd = open(cVFD_DEVICE, O_RDWR);
+ 
+-	}
+-	return vFd;
+-}
++    if (vFd < 0)
++    {
++       fprintf(stderr, "cannot open %s\n", cVFD_DEVICE);
++       perror("");
++    }
+ 
+-static int Spark_usage(Context_t *context, char *prg_name, char *cmd_name)
+-{
+-	int i;
++    ((Model_t*)context->m)->private = private;
++    memset(private, 0, sizeof(tSparkPrivate));
+ 
+-	fprintf(stderr, "Usage:\n\n");
+-	fprintf(stderr, "%s argument [optarg1] [optarg2]\n", prg_name);
++    checkConfig(&private->display, &private->display_custom, &private->timeFormat, &private->wakeupDecrement);
+ 
+-	for (i = 0; ; i++)
+-	{
+-		if (vHArgs[i].arg == NULL)
+-		{
+-			break;
+-		}
+-		if ((cmd_name == NULL) || (strcmp(cmd_name, vHArgs[i].arg) == 0) || (strstr(vHArgs[i].arg_long, cmd_name) != NULL))
+-		{
+-			fprintf(stderr, "%s   %s   %s\n", vHArgs[i].arg, vHArgs[i].arg_long, vHArgs[i].arg_description);
+-		}
+-	}
+-	return 0;
++    return vFd;
+ }
+ 
+-static int Spark_setTimer(Context_t *context, time_t *timerTime)
++static int Spark_usage(Context_t* context, char* prg_name)
+ {
+-	//-e command, rewritten, tested on Spark7162
+-	struct aotom_ioctl_data vData;
+-	time_t curTime;
+-	time_t iTime;
+-	time_t wakeupTime;
+-	struct tm *ts;
+-	struct tm *tss;
+-	unsigned long diff;
+-	int sday, smonth, syear;
+-
+-	time(&curTime);  //get system time (UTC)
+-	tss = localtime(&curTime); //save it for the date
+-	sday = tss->tm_mday;
+-	smonth = tss->tm_mon + 1;
+-	syear = tss->tm_year + 1900;
+-	printf("Current system time: %02d:%02d:%02d %02d-%02d-%04d\n", tss->tm_hour, tss->tm_min, tss->tm_sec, tss->tm_mday, tss->tm_mon + 1, tss->tm_year + 1900);
+-	if (timerTime == NULL) // -e no argument = shutdown on next e2/neutrino timer
+-	{
+-		wakeupTime = read_timers_utc(curTime); //get current 1st timer
+-	}
+-	else
+-	{
+-		wakeupTime = *timerTime; //get specified time
+-	}
+-	if ((wakeupTime == LONG_MAX) || (wakeupTime == -1)) // if no timers set
+-	{
+-		return 0;
+-	}
+-	else
+-	{
+-		/* get front controller time */
+-		if (ioctl(context->fd, VFDGETTIME, &iTime) < 0)
+-		{
+-			perror("Get current fp time");
+-			return -1;
+-		}
+-		/* difference from now to wake up */
+-		diff = (unsigned long int) wakeupTime - curTime;
+-		if (iTime != '\0')
+-		{
+-			/* use current front controller time */
+-			curTime = iTime;
+-			ts = gmtime(&curTime);
+-			printf("Current fp");
+-		}
+-		else
+-		{
+-			printf("Error reading current fp time... assuming local system time\n");
+-			ts = localtime(&curTime);
+-			printf("Current system");
+-		}
+-		wakeupTime = curTime + diff;
+-		printf(" time: %02d:%02d:%02d %02d-%02d-%04d\n", ts->tm_hour, ts->tm_min, ts->tm_sec, sday, smonth, syear);
+-		if (curTime > wakeupTime)
+-		{
+-			printf("Wake up time in the past!\n");
+-			return 0;
+-		}
+-		ts = gmtime(&wakeupTime);
+-		printf("Wake up time: %02d:%02d:%02d", ts->tm_hour, ts->tm_min, ts->tm_sec);
+-//		if (diff > 86399)
+-		if ((tss->tm_mday == ts->tm_mday)
+-		&& (tss->tm_mon == ts->tm_mon)
+-		&& (tss->tm_year == ts->tm_year)) //today
+-		{
+-			printf(" (today)\n");
+-		}
+-		else
+-		{
+-			printf("\non          : %02d-%02d-%04d\n", sday, smonth, syear);
+-		}
+-//		if (tss->tm_mday > 1)
+-//		{
+-//			printf(" in %d day(s)", tss->tm_mday - 1);
+-//		}
+-//		if (tss->tm_mon != 0)
+-//		{
+-//			printf(", %d month(s)", tss->tm_mon);
+-//		}
+-//		if (tss->tm_year != 70)
+-//		{
+-//			printf(", %d year(s)", tss->tm_year - 70);
+-//		}
+-//		printf("\n");
+-		Spark_calcAotomTime(wakeupTime, vData.u.standby.time);
+-		if (ioctl(context->fd, VFDSTANDBY, &wakeupTime) < 0)
+-		{
+-			perror("Shut down until wake up time");
+-			return -1;
+-		}
+-	}
+-	return 0;
++   fprintf(stderr, "%s: not implemented\n", __func__);
++   return -1;
+ }
+ 
+-static int Spark_shutdown(Context_t *context, time_t *shutdownTimeGMT)
++static int Spark_setTime(Context_t* context, time_t* theGMTTime)
+ {
+-	//-d command, partially rewritten
+-	struct aotom_ioctl_data vData;
+-	time_t curTime;
+-	time_t wakeupTime;
+-	struct tm *ts;
+-
+-	/* shutdown immediately */
+-	if (*shutdownTimeGMT == -1)
+-	{
+-		if (ioctl(context->fd, VFDPOWEROFF, &vData) < 0)
+-		{
+-			perror("Shut down immediately");
+-			return -1;
+-		}
+-		return 0;
+-	}
+-	/* shutdown at given time */
+-	wakeupTime = *shutdownTimeGMT;
+-	ts = localtime(&wakeupTime);
+-	printf("Shut down time: %02d:%02d:%02d %02d-%02d-%04d\n",
+-		   ts->tm_hour, ts->tm_min, ts->tm_sec, ts->tm_mday, ts->tm_mon + 1, ts->tm_year + 1900);
+-	time(&curTime);
+-	ts = localtime(&curTime);
+-	if (curTime > *shutdownTimeGMT)
+-	{
+-		printf("Shut down time in the past!\n");
+-		return 0;
+-	}
+-	while (curTime < *shutdownTimeGMT)
+-	{
+-		time(&curTime);
+-		ts = localtime(&curTime);
+-		printf("Current time  : %02d:%02d:%02d %02d-%02d-%04d\r",
+-			   ts->tm_hour, ts->tm_min, ts->tm_sec, ts->tm_mday, ts->tm_mon + 1, ts->tm_year + 1900);
+-		usleep(20000);
+-	}
+-	printf("\n\n");
+-	/* shut down */
+-	if (ioctl(context->fd, VFDPOWEROFF, &vData) < 0)
+-	{
+-		perror("Shutdown at given time");
+-		return -1;
+-	}
+-	return 0;
+-}
++   struct aotom_ioctl_data vData;
+ 
+-static int Spark_reboot(Context_t *context, time_t *rebootTimeGMT)
+-{
+-	//-r command, partially rewritten
+-	// Note: aotom does not have a particular reboot command
+-	time_t curTime;
+-
+-	/* reboot at a given time */
+-	if (*rebootTimeGMT != -1)
+-	{
+-		return (Spark_setTimer(context, rebootTimeGMT));
+-	}
+-	/* reboot immediately */
+-	time(&curTime);
+-	*rebootTimeGMT = curTime + 5;
+-	return (Spark_setTimer(context, rebootTimeGMT));
+-}
+-
+-static int Spark_getTime(Context_t *context, time_t *theGMTTime)
+-{
+-	// -g and -gs commands, adapted for spark
+-	struct tm *g_tm;
+-	time_t iTime;
+-
+-	/* get front controller time */
+-	if (ioctl(context->fd, VFDGETTIME, &iTime) < 0)
+-	{
+-		perror("Get time");
+-		return -1;
+-	}
+-	/* if we get the fp time */
+-	if (iTime != '\0')
+-	{
+-		/* current frontcontroller time */
+-		*theGMTTime = iTime;
+-		g_tm = gmtime(&iTime);
+-		printf("Frontprocessor time: %02d:%02d:%02d %02d-%02d-%04d\n", g_tm->tm_hour,
+-			g_tm->tm_min, g_tm->tm_sec, g_tm->tm_mday, g_tm->tm_mon + 1, g_tm->tm_year + 1900);
+-	}
+-	else
+-	{
+-		fprintf(stderr, "Error reading time from frontprocessor\n");
+-		*theGMTTime = 0;
+-		return -1;
+-	}
+-	return 1;
+-}
++   printf("%s\n", __func__);
+ 
+-static int Spark_getWTime(Context_t *context, time_t *theGMTTime)
+-{
+-	//-gt command, note: VFDGETWAKEUPTIME not supported by older aotoms
+-	time_t iTime;
++   Spark_setAotomTime(*theGMTTime, vData.u.time.time);
+ 
+-	/* front controller wake up time */
+-	if (ioctl(context->fd, VFDGETWAKEUPTIME, &iTime) < 0)
+-	{
+-		perror("Get wakeup time");
+-		return -1;
+-	}
+-	/* if we get the fp time */
+-	if (iTime != '\0')
+-	{
+-		/* current frontcontroller wake up time */
+-		*theGMTTime = iTime;
+-	}
+-	else
+-	{
+-		fprintf(stderr, "Error reading wake up time from frontprocessor\n");
+-		*theGMTTime = 0;
+-		return -1;
+-	}
+-	return 1;
++   if (ioctl(context->fd, VFDSETTIME, &vData) < 0)
++   {
++      perror("settime: ");
++      return -1;
++   }
++   return 0;
+ }
+ 
+-static int Spark_setTime(Context_t *context, time_t *theGMTTime)
++static int Spark_getTime(Context_t* context, time_t* theGMTTime)
+ {
+-	//-s command
+-	time_t sTime;
+-	struct tm *s_tm;
++   time_t iTime;
++   fprintf(stderr, "waiting on current time from fp ...\n");
+ 
+-	sTime = *theGMTTime;
+-	s_tm = localtime(&sTime); //get the time the user put in and the matching GMT offset
++   /* front controller time */
++   if (ioctl(context->fd, VFDGETTIME, &iTime) < 0)
++   {
++      perror("gettime: ");
++      return -1;
++   }
+ 
+-	sTime += s_tm->tm_gmtoff;
+-	if (ioctl(context->fd, VFDSETTIME2, &sTime) < 0)
+-	{
+-		perror("Set time");
+-		return -1;
+-	}
+-	fprintf(stderr, "Frontprocessor time set to: %02d:%02d:%02d %02d-%02d-%04d (local)\n", s_tm->tm_hour,
+-		s_tm->tm_min, s_tm->tm_sec, s_tm->tm_mday, s_tm->tm_mon + 1, s_tm->tm_year + 1900);
+-	return 1;
+-}
+-
+-static int Spark_setWTime(Context_t *context, time_t *theGMTTime)
+-{
+-	//-st command
+-	struct tm *swtm;
+-	time_t iTime;
+-	int proc_fs;
+-	FILE *proc_fs_file;
+-
+-	iTime = *theGMTTime;
+-	swtm = localtime(&iTime);
+-	fprintf(stderr, "Setting wake up time to %02d:%02d:%02d %02d-%02d-%04d\n", swtm->tm_hour,
+-		swtm->tm_min, swtm->tm_sec, swtm->tm_mday, swtm->tm_mon + 1, swtm->tm_year + 1900);
+-
+-	iTime += swtm->tm_gmtoff;
+-	if (ioctl(context->fd, VFDSETPOWERONTIME, &iTime) < 0)
+-	{
+-		perror("Set wake up time");
+-		return -1;
+-
+-		// write UTC offset to /proc/stb/fp/rtc_offset
+-		proc_fs_file = fopen(cRTC_OFFSET_FILE, "w");
+-		if (proc_fs_file == NULL)
+-		{
+-			perror("Open rtc_offset");
+-			return -1;
+-		}
+-		proc_fs = fprintf(proc_fs_file, "%d", (int)swtm->tm_gmtoff);
+-		if (proc_fs < 0)
+-		{
+-			perror("Write rtc_offset");
+-			return -1;
+-		}
+-		fclose(proc_fs_file);
+-		fprintf(stderr, "/proc/stb/fp/rtc_offset set to: %+d seconds\n", (int)swtm->tm_gmtoff);
+-	}
+-	return 0;
++   /* if we get the fp time */
++   if (iTime != '\0')
++   {
++      fprintf(stderr, "success reading time from fp\n");
++
++      /* current front controller time */
++      *theGMTTime = iTime;
++   } else
++   {
++      fprintf(stderr, "error reading time from fp\n");
++      *theGMTTime = 0;
++   }
++   return 0;
+ }
+ 
+-static int Spark_setSTime(Context_t *context, time_t *theGMTTime)
++static int Spark_setTimer(Context_t* context, time_t* theGMTTime)
+ {
+-	//-sst command
+-	time_t systemTime = time(NULL);
+-	struct tm *sst;
+-	int proc_fs;
+-	FILE *proc_fs_file;
+-
+-	sst = localtime(&systemTime);
+-	if (sst->tm_year == 100)
+-	{
+-		fprintf(stderr, "Problem: system time not set.\n");
+-	}
+-	else
+-	{
+-		systemTime += sst->tm_gmtoff;
+-		// set front panel clock to local time
+-		if (ioctl(context->fd, VFDSETTIME2, &systemTime) < 0)
+-		{
+-			perror("Set FP time to system time");
+-			return -1;
+-		}
+-		fprintf(stderr, "Frontprocessor time set to: %02d:%02d:%02d %02d-%02d-%04d\n", sst->tm_hour,
+-			 sst->tm_min, sst->tm_sec, sst->tm_mday, sst->tm_mon + 1, sst->tm_year + 1900);
++   struct aotom_ioctl_data vData;
++   time_t                  curTime;
++   time_t                  wakeupTime;
++   struct tm               *ts;
++   tSparkPrivate* private = (tSparkPrivate*)
++        ((Model_t*)context->m)->private;
+ 
+-		// write UTC offset to /proc/stb/fp/rtc_offset
+-		proc_fs_file = fopen(cRTC_OFFSET_FILE, "w");
+-		if (proc_fs_file == NULL)
+-		{
+-			perror("Open rtc_offset");
+-			return -1;
+-		}
+-		proc_fs = fprintf(proc_fs_file, "%d", (int)sst->tm_gmtoff);
+-		if (proc_fs < 0)
+-		{
+-			perror("Write rtc_offset");
+-			return -1;
+-		}
+-		fclose(proc_fs_file);
+-		fprintf(stderr, "/proc/stb/fp/rtc_offset set to: %+d seconds\n", (int)sst->tm_gmtoff);
+-	}
+-	return 0;
++   time(&curTime);
++   ts = localtime (&curTime);
++
++   fprintf(stderr, "Current Time: %02d:%02d:%02d %02d-%02d-%04d\n",
++	   ts->tm_hour, ts->tm_min, ts->tm_sec, ts->tm_mday, ts->tm_mon+1, ts->tm_year+1900);
++
++   if (theGMTTime == NULL)
++      wakeupTime = read_timers_utc(curTime);
++   else
++      wakeupTime = *theGMTTime;
++
++   if ((wakeupTime <= 0) || (wakeupTime == LONG_MAX))
++   {
++       /* nothing to do for e2 */
++       fprintf(stderr, "no e2 timer found clearing fp wakeup time ... good bye ...\n");
++
++       vData.u.standby.time[0] = '\0';
++       if (ioctl(context->fd, VFDSTANDBY, &vData) < 0)
++       {
++	  perror("standby: ");
++          return -1;
++       }
++
++   } else
++   {
++      unsigned long diff;
++   	  time_t iTime;
++      fprintf(stderr, "waiting on current time from fp ...\n");
++
++      /* front controller time */
++       if (ioctl(context->fd, VFDGETTIME, &iTime) < 0)
++       {
++	  	  perror("gettime: ");
++          return -1;
++       }
++
++      /* difference from now to wake up */
++      diff = (unsigned long int) wakeupTime - curTime;
++
++      /* if we get the fp time */
++      if (iTime != '\0')
++      {
++         fprintf(stderr, "success reading time from fp\n");
++
++         /* current front controller time */
++		 curTime = iTime;
++      } else
++      {
++          fprintf(stderr, "error reading time ... assuming localtime\n");
++          /* noop current time already set */
++      }
++
++      wakeupTime = curTime + diff;
++
++      Spark_setAotomTime(wakeupTime, vData.u.standby.time);
++
++       if (ioctl(context->fd, VFDSTANDBY, &wakeupTime) < 0)
++       {
++	  perror("standby: ");
++          return -1;
++       }
++   }
++   return 0;
+ }
+ 
+-static int Spark_setText(Context_t *context, char *theText)
++static int Spark_getTimer(Context_t* context, time_t* theGMTTime)
+ {
+-	//-t command
+-	char text[cMAXCharsSpark + 1];
+-	int disp_size;
+-
+-	switch (fp_type)
+-	{
+-		case 3: //DVFD
+-		{
+-			disp_size = (time_mode ? 10 : 16);
+-			break;
+-		}
+-		case 4: //LED
+-		{
+-			if (strlen(theText) > 2 //handle period, comma and colon
+-			&& (theText[2] == 0x2e || theText[2] == 0x2c || theText[2] == 0x3a))
+-			{
+-				disp_size = 5;
+-			}
+-			else
+-			{
+-				disp_size = 4;
+-			}
+-			break;
+-		}
+-		default: //VFD and others
+-		{
+-			disp_size = 8;
+-			break;
+-		}
+-	}
+-	strncpy(text, theText, disp_size);
+-	text[disp_size] = 0;
+-	write(context->fd, text, strlen(text));
+-	return 0;
++   fprintf(stderr, "%s: not implemented\n", __func__);
++   return -1;
+ }
+ 
+-static int Spark_setLed(Context_t *context, int which, int on)
++static int Spark_shutdown(Context_t* context, time_t* shutdownTimeGMT)
+ {
+-	//-l command
+-	struct aotom_ioctl_data vData;
++   time_t     curTime;
+ 
+-	if (on < 0 || on > 255)
+-	{
+-		printf("Illegal LED action %d (valid is 0..255)\n", on);
+-		return 0;
+-	}
+-	vData.u.led.led_nr = which;
+-	vData.u.led.on = on;
+-	res = (ioctl(context->fd, VFDSETLED, &vData));
+-	if (res < 0)
+-	{
+-		perror("Setled");
+-		return -1;
+-	}
+-	return 0;
++   /* shutdown immediate */
++   if (*shutdownTimeGMT == -1)
++      return (Spark_setTimer(context, NULL));
++
++   while (1)
++   {
++      time(&curTime);
++
++      /*printf("curTime = %d, shutdown %d\n", curTime, *shutdownTimeGMT);*/
++
++      if (curTime >= *shutdownTimeGMT)
++      {
++          /* set most recent e2 timer and bye bye */
++          return (Spark_setTimer(context, NULL));
++      }
++
++      usleep(100000);
++   }
++
++   return -1;
+ }
+ 
+-static int Spark_setIcon(Context_t *context, int which, int on)
++static int Spark_reboot(Context_t* context, time_t* rebootTimeGMT)
+ {
+-	//-i command
+-	int first, last;
+-	struct aotom_ioctl_data vData;
+-
+-	if (fp_type == 3)
+-	{
+-		first = 48;
+-		last = 63;
+-	}
+-	else
+-	{
+-		first = 1;
+-		last = 47;
+-	}
+-	if ((which < first || which > last) 
+-	&& which != 46 //icons present on both VFD and DVFD
+-	&& which != 8
+-	&& which != 10
+-	&& which != 11
+-	&& which != 12
+-	&& which != 13
+-	&& which != 14
+-	&& which != 26)
+-	{
+-		return 0;
+-	}
+-	vData.u.icon.icon_nr = which;
+-	vData.u.icon.on = on;
+-	if (ioctl(context->fd, VFDICONDISPLAYONOFF, &vData) < 0)
+-	{
+-		perror("Set icon");
+-		return -1;
+-	}
+-	return 0;
++   time_t                  curTime;
++   struct aotom_ioctl_data vData;
++
++   while (1)
++   {
++      time(&curTime);
++
++      if (curTime >= *rebootTimeGMT)
++      {
++	 if (ioctl(context->fd, VFDREBOOT, &vData) < 0)
++         {
++	    perror("reboot: ");
++            return -1;
++         }
++      }
++
++      usleep(100000);
++   }
++   return 0;
+ }
+ 
+-static int Spark_setBrightness(Context_t *context, int brightness)
++static int Spark_Sleep(Context_t* context, time_t* wakeUpGMT)
+ {
+-	//-b command
+-	struct aotom_ioctl_data vData;
++#if 0
++   time_t     curTime;
++   int        sleep = 1;
++   int        vFd;
++   fd_set     rfds;
++   struct     timeval tv;
++   int        retval;
++   struct tm  *ts;
++   char       output[cMAXCharsVIP2 + 1];
++   tSparkPrivate* private = (tSparkPrivate*)
++        ((Model_t*)context->m)->private;
++   printf("%s\n", __func__);
+ 
+-	if (brightness < 0 || brightness > 7)
+-	{
+-		printf("Illegal brightness level %d (valid is 0..7)\n", brightness);
+-		return 0;
+-	}
+-	vData.u.brightness.level = brightness;
+-	if (ioctl(context->fd, VFDBRIGHTNESS, &vData) < 0)
+-	{
+-		perror("Set brightness");
+-		return -1;
+-	}
+-	return 0;
++   vFd = open(cRC_DEVICE, O_RDWR);
++
++   if (vFd < 0)
++   {
++      fprintf(stderr, "cannot open %s\n", cRC_DEVICE);
++      perror("");
++      return -1;
++   }
++
++   printf("%s 1\n", __func__);
++
++   while (sleep)
++   {
++      time(&curTime);
++      ts = localtime (&curTime);
++
++      if (curTime >= *wakeUpGMT)
++      {
++         sleep = 0;
++      } else
++      {
++	 FD_ZERO(&rfds);
++	 FD_SET(vFd, &rfds);
++
++	 tv.tv_sec = 0;
++	 tv.tv_usec = 100000;
++
++	 retval = select(vFd + 1, &rfds, NULL, NULL, &tv);
++
++	 if (retval > 0)
++	 {
++            sleep = 0;
++	 }
++      }
++
++      if (private->display)
++      {
++         strftime(output, cMAXCharsVIP2 + 1, private->timeFormat, ts);
++         Spark_setText(context, output);
++      }
++   }
++#endif
++
++   return 0;
+ }
+ 
+-static int Spark_setLight(Context_t *context, int on)
++static int Spark_setText(Context_t* context, char* theText)
+ {
+-	//-L command
+-	struct aotom_ioctl_data vData;
+-	if (on < 0 || on > 1)
+-	{
+-		printf("Illegal light value %d (valid is 0 | 1)\n", on);
+-		return 0;
+-	}
+-	vData.u.light.onoff = on;
+-	if (ioctl(context->fd, VFDDISPLAYWRITEONOFF, &vData) < 0)
+-	{
+-		perror("Set light");
+-		return -1;
+-	}
+-	return 0;
++   char vHelp[128];
++
++   strncpy(vHelp, theText, cMAXCharsVIP2);
++   vHelp[cMAXCharsVIP2] = '\0';
++
++   /* printf("%s, %d\n", vHelp, strlen(vHelp));*/
++
++   write(context->fd, vHelp, strlen(vHelp));
++
++   return 0;
+ }
+ 
+-static int Spark_setDisplayTime(Context_t *context, int on)
++static int Spark_setLed(Context_t* context, int which, int on)
+ {
+-	// -dt command
+-	time_t systemTime = time(NULL);
+-	struct tm *gmt;
+-
+-	gmt = localtime(&systemTime); //get system time
+-
+-	if ((gmt->tm_year + 1900) > 2016)
+-	{
+-		fprintf(stderr, "Option -dt is not supported on this receiver.\n");
+-		return -1;
+-	}
++   struct aotom_ioctl_data vData;
+ 
+-	fprintf(stderr, "Option -dt is deprecated in this receiver,\nplease use -sst or -s option in future.\n");
++   vData.u.led.led_nr = which;
++   vData.u.led.on = on;
+ 
+-	if (gmt->tm_year == 100)
+-	{
+-		fprintf(stderr, "Problem: system time not set.\n");
+-	}
+-	else
+-	{
+-		fprintf(stderr, "Setting front panel clock to\ncurrent system time: %02d:%02d:%02d %02d-%02d-%04d\n",
+-				gmt->tm_hour, gmt->tm_min, gmt->tm_sec, gmt->tm_mday, gmt->tm_mon + 1, gmt->tm_year + 1900);
+-		systemTime += gmt->tm_gmtoff;
+-		if (ioctl(context->fd, VFDSETTIME2, &systemTime) < 0)
+-		{
+-			perror("Set FP time to system time");
+-			return -1;
+-		}
+-	}
+-	return 0;
++   if (ioctl(context->fd, VFDSETLED, &vData) < 0)
++   {
++      perror("setled: ");
++      return -1;
++   }
++   return 0;
+ }
+ 
+-static int Spark_setFan(Context_t *context, int on)
++static int Spark_setIcon (Context_t* context, int which, int on)
+ {
+-	// -sf command
+-	fprintf(stderr, "Set fan: not implemented,\nSparks do not have a fan!\n");
+-	return -1;
++   struct aotom_ioctl_data vData;
++
++   vData.u.icon.icon_nr = which;
++   vData.u.icon.on = on;
++
++   if (ioctl(context->fd, VFDICONDISPLAYONOFF, &vData) < 0)
++   {
++      perror("seticon: ");
++      return -1;
++   }
++   return 0;
+ }
+ 
+-static int Spark_setRF(Context_t *context, int on)
++static int Spark_setBrightness(Context_t* context, int brightness)
+ {
+-	// -sr command
+-	fprintf(stderr, "Set RF: not implemented,\nSparks do not have an RF modulator!\n");
+-	return -1;
++   struct aotom_ioctl_data vData;
++
++   if (brightness < 0 || brightness > 7)
++      return -1;
++
++   vData.u.brightness.level = brightness;
++
++   printf("%d\n", context->fd);
++   if (ioctl(context->fd, VFDBRIGHTNESS, &vData) < 0)
++   {
++      perror("setbrightness: ");
++      return -1;
++   }
++   return 0;
+ }
+ 
+-static int Spark_setLEDb(Context_t *context, int brightness)
++static int Spark_setPwrLed(Context_t* context, int brightness)
+ {
+-	// -lb command
+-	fprintf(stderr, "Set LED brightness: not implemented,\nSparks cannot control LED brightness!\n");
++	fprintf(stderr, "%s: not implemented\n", __func__);
+ 	return -1;
+ }
+ 
+-static int Spark_clear(Context_t *context)
++
++static int Spark_setLight(Context_t* context, int on)
+ {
+-	//-c command
+-	struct aotom_ioctl_data vData;
+ 
+-	if (ioctl(context->fd, VFDDISPLAYCLR, &vData) < 0)
+-	{
+-		perror("Clear");
+-		return -1;
+-	}
+-	if (fp_type == 1 || fp_type == 3)
+-	{
+-		vData.u.icon.icon_nr = 46;
+-		vData.u.icon.on = 0;
+-		if (ioctl(context->fd, VFDICONDISPLAYONOFF, &vData) < 0)
+-		{
+-			perror("Set icon");
+-			return -1;
+-		}
+-	}
+-	vData.u.led.led_nr = 0;
+-	vData.u.led.on = 0;
+-	res = (ioctl(context->fd, VFDSETLED, &vData));
+-	if (res < 0)
+-	{
+-		perror("Setled (red)");
+-		return -1;
+-	}
+-	if (fp_type != 1)
+-	{
+-		vData.u.led.led_nr = 1;
+-		vData.u.led.on = 0;
+-		res = (ioctl(context->fd, VFDSETLED, &vData));
+-		if (res < 0)
+-		{
+-			perror("Setled (green)");
+-			return -1;
+-		}
+-	}
+-	return 0;
++    if (on)
++       Spark_setBrightness(context, 7);
++    else
++       Spark_setBrightness(context, 0);
++
++    return 0;
+ }
+ 
+-static int Spark_getWakeupReason(Context_t *context, eWakeupReason *reason)
++static int Spark_Exit(Context_t* context)
+ {
+-	//-w command
+-	char mode[8];
++   tSparkPrivate* private = (tSparkPrivate*)
++        ((Model_t*)context->m)->private;
+ 
+-	if (ioctl(context->fd, VFDGETSTARTUPSTATE, mode) < 0)
+-	{
+-		perror("Get wakeup reason");
+-		return -1;
+-	}
+-	if (mode[0] != '\0')  /* if we get the fp wake up reason */
+-	{
+-		*reason = mode[0] & 0xff; //get first byte
+-	}
+-	else
+-	{
+-		fprintf(stderr, "Error reading wakeup mode from frontprocessor\n");
+-		*reason = 0;  //echo unknown
+-	}
+-	return 0;
+-}
++    if (context->fd > 0)
++       close(context->fd);
+ 
+-static int Spark_getVersion(Context_t *context, int *version)
+-{
+-	//-v command
+-	unsigned char strVersion[20];
+-	const char *CPU_type[3] = { "Unknown", "ATTING48", "ATTING88" };
+-	const char *Display_type[9] = { "Unknown", "VFD", "LCD", "DVFD", "LED", "?", "?", "?", "LBD" };
+-
+-	if (ioctl(context->fd, VFDGETVERSION, &strVersion) < 0) // get version info (1x u32 4x u8)
+-	{
+-		perror("Get version info");
+-		return -1;
+-	}
+-	if (strVersion[0] != '\0')  /* if the version info is OK */
+-	{
+-		printf("Front processor version info:\n");
+-		printf("FP CPU type is   : %d (%s)\n", strVersion[0], CPU_type[strVersion[0]]);
+-		printf("Display type is  : %d (%s)\n", strVersion[4], Display_type[strVersion[4]]);
+-		printf("# of keys        : %d\n", strVersion[5]);
+-		printf("FP SW version is : %d.%d\n", strVersion[6], strVersion[7]);
+-		*version = strVersion[6] * 100 + strVersion[7];
+-	}
+-	else
+-	{
+-		fprintf(stderr, "Error reading version from fp\n");
+-		*version = -1;
+-	}
+-	return 0;
++    free(private);
++
++    exit(1);
+ }
+ 
+-static int Spark_setTimeMode(Context_t *context, int on)
++static int Spark_Clear(Context_t* context)
+ {
+-	// -tm command
+-	const char *timeMode_type[2] = { "off", "on" };
+-	struct aotom_ioctl_data vData;
+-
+-	if (fp_type == 3)
+-	{
+-		if (on != 0)
+-		{
+-			on = 1;
+-		}
+-		vData.u.display_time.on = on;
+-		if (ioctl(context->fd, VFDSETDISPLAYTIME, &vData) < 0)
+-		{
+-			perror("Set time mode");
+-			return -1;
+-		}
+-		time_mode = on;
+-		if (disp)
+-		{
+-			printf("FP time mode is now %s.\n", timeMode_type[time_mode]);
+-		}
+-	}
+-	else
+-	{
+-		printf("Set time mode is only supported on DVFD displays.\n");
+-	}
+-	return 0;
++   struct aotom_ioctl_data vData;
++
++   if (ioctl(context->fd, VFDDISPLAYCLR, &vData) < 0)
++   {
++      perror("clear: ");
++      return -1;
++   }
++	 return 0;
+ }
+ 
+-static int Spark_exit(Context_t *context)
++static int Spark_getWakeupReason(Context_t* context, int *reason)
+ {
+-	tSparkPrivate *private = (tSparkPrivate *)((Model_t *)context->m)->private;
+-
+-	if (context->fd > 0)
+-	{
+-		close(context->fd);
++    if (ioctl(context->fd, VFDGETSTARTUPSTATE, reason) < 0)
++    {
++	perror("Spark_getWakeupReason: ");
++    
++	return -1;
++    }
++    
++    return 0;
++}
++
++static int Spark_setDisplayTime(Context_t* context, int on)
++{
++    if (on ==1) {
++	    time_t theGMTTime = time(NULL);
++	    struct tm *gmt;
++	    gmt = localtime(&theGMTTime);
++	    
++	    if (gmt->tm_year == 100) {
++		fprintf(stderr, "RTC Time not set.\n");
++	    } else {
++		fprintf(stderr, "Setting Clock to current time: %02d:%02d:%02d %02d-%02d-%04d\n",
++			gmt->tm_hour, gmt->tm_min, gmt->tm_sec, gmt->tm_mday, gmt->tm_mon+1, gmt->tm_year+1900);
++			
++		theGMTTime += gmt->tm_gmtoff;
++		
++		if (ioctl(context->fd, VFDREBOOT, &theGMTTime) < 0)
++		{
++		    perror("settime: ");
++		    return -1;
++		}
++	     }
++	} else {
++		Spark_Clear(context);
+ 	}
+-	free(private);
+-	return 1;
++	return 0;
+ }
+ 
+-Model_t Spark_model =
+-{
+-	.Name             = "Edision/Spark frontpanel control utility",
+-	.Type             = Spark,
+-	.Init             = Spark_init,
+-	.Clear            = Spark_clear,
+-	.Usage            = Spark_usage,
+-	.SetTime          = Spark_setTime,
+-	.SetSTime         = Spark_setSTime,
+-	.SetTimer         = Spark_setTimer,
+-	.GetTime          = Spark_getTime,
+-	.GetWTime         = Spark_getWTime,
+-	.SetWTime         = Spark_setWTime,
+-	.Shutdown         = Spark_shutdown,
+-	.Reboot           = Spark_reboot,
+-	.Sleep            = NULL,
+-	.SetText          = Spark_setText,
+-	.SetLed           = Spark_setLed,
+-	.SetIcon          = Spark_setIcon,
+-	.SetBrightness    = Spark_setBrightness,
+-	.GetWakeupReason  = Spark_getWakeupReason,
+-	.SetLight         = Spark_setLight,
+-	.SetLedBrightness = Spark_setLEDb,
+-	.GetVersion       = Spark_getVersion,
+-	.SetRF            = Spark_setRF,
+-	.SetFan           = Spark_setFan,
+-	.SetDisplayTime   = Spark_setDisplayTime,
+-	.SetTimeMode      = Spark_setTimeMode,
+-#if defined MODEL_SPECIFIC
+-	.ModelSpecific    = NULL,
+-#endif
+-	.Exit             = Spark_exit
++Model_t Spark_model = {
++	.Name			= "Edision Spark frontpanel control utility",
++	.Type			= Spark,
++	.Init			= Spark_init,
++	.Clear			= Spark_Clear,
++	.Usage			= Spark_usage,
++	.SetTime		= Spark_setTime,
++	.GetTime		= Spark_getTime,
++	.SetTimer		= Spark_setTimer,
++	.GetTimer		= Spark_getTimer,
++	.SetDisplayTime		= Spark_setDisplayTime,
++	.Shutdown		= Spark_shutdown,
++	.Reboot			= Spark_reboot,
++	.Sleep			= Spark_Sleep,
++	.SetText		= Spark_setText,
++	.SetLed			= Spark_setLed,
++	.SetIcon		= Spark_setIcon,
++	.SetBrightness		= Spark_setBrightness,
++	.SetPwrLed		= Spark_setPwrLed,
++	.SetLight		= Spark_setLight,
++	.Exit			= Spark_Exit,
++	.GetWakeupReason	= Spark_getWakeupReason,
++	.private		= NULL,
+ };
+diff -Naur sh4-apps-master/tools/fp_control/Spark.h sh4-apps-prince/tools/fp_control/Spark.h
+--- sh4-apps-master/tools/fp_control/Spark.h	2019-08-27 22:19:07.000000000 +0430
++++ sh4-apps-prince/tools/fp_control/Spark.h	2019-08-28 01:52:14.769292635 +0430
+@@ -1,107 +1,51 @@
+ #ifndef __Spark__
+ #define __Spark__
+ 
+-#define VFDGETVERSION     0xc0425af7
+-#define VFDSETTIME2       0xc0425afd
+-#define VFDGETWAKEUPTIME  0xc0425b03
+-#define VFDSETDISPLAYTIME 0xc0425b04 // added by Audioniek (Cuberevo uses 0xc0425b02)
+-#define VFDGETDISPLAYTIME 0xc0425b05 /* Spark specific */
+-
+ /* this setups the mode temporarily (for one ioctl)
+  * to the desired mode. currently the "normal" mode
+  * is the compatible vfd mode
+  */
+-struct set_mode_s
+-{
++struct set_mode_s {
+ 	int compat; /* 0 = compatibility mode to vfd driver; 1 = nuvoton mode */
+ };
+ 
+-struct set_brightness_s
+-{
++struct set_brightness_s {
+ 	int level;
+ };
+ 
+-struct set_icon_s
+-{
++struct set_icon_s {
+ 	int icon_nr;
+ 	int on;
+ };
+ 
+-struct set_led_s
+-{
++struct set_led_s {
+ 	int led_nr;
+ 	int on;
+ };
+ 
+-struct set_light_s
+-{
+-	int onoff;
+-};
+-
+-struct set_display_time_s
+-{
+-	int on;
+-};
+-
+ /* time must be given as follows:
+  * time[0] & time[1] = mjd ???
+  * time[2] = hour
+  * time[3] = min
+  * time[4] = sec
+  */
+-struct set_standby_s
+-{
++struct set_standby_s {
+ 	char time[5];
+ };
+ 
+-struct set_time_s
+-{
++struct set_time_s {
+ 	char time[5];
+ };
+ 
+-struct get_version_s
+-{
+-	unsigned char CpuType;
+-	unsigned char DisplayInfo;
+-	unsigned char scankeyNum;
+-	unsigned char swMajorVersion;
+-	unsigned char swSubVersion;
+-};
+-
+-/* YYMMDDhhmmss */
+-struct get_wakeuptime
+-{
+-	char time[12];
+-};
+-
+-struct set_modelspecific_s
+-{
+-	long one;
+-	long two;
+-};
+-
+-struct get_modelspecific_s
+-{
+-	long key_nr;
+-	long key_data;
+-};
+-
+-struct aotom_ioctl_data
+-{
++struct aotom_ioctl_data {
+ 	union
+ 	{
+ 		struct set_icon_s icon;
+ 		struct set_led_s led;
+-		struct set_light_s light;
+ 		struct set_brightness_s brightness;
+-		struct set_display_time_s display_time;
+ 		struct set_mode_s mode;
+ 		struct set_standby_s standby;
+ 		struct set_time_s time;
+-		struct get_version_s versionp;
+-		struct get_wakeuptime wakeup_time;
+-		struct get_modelspecific_s getmodelspecific;
+-		struct set_modelspecific_s setmodelspecific;
+ 	} u;
+ };
+ 
