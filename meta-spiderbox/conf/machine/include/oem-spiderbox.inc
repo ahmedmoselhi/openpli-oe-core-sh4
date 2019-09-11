@@ -4,6 +4,7 @@ require conf/machine/include/wifi-sh4.inc
 
 BRAND_OEM = "spiderbox"
 
+IMAGEDIR ?= "enigma2"
 IMAGE_FSTYPES += "tar.gz"
 
 AUDIOELF = "audio_7100.elf"
@@ -35,7 +36,7 @@ SERIAL_CONSOLE = "115200 ttyAS0"
 
 DVBPROVIDER = "kernel"
 
-MACHINE_FEATURES += "ext2 serial switchoff textlcd spiderbox singlecore legacykernel usbconsole wlan"
+MACHINE_FEATURES += "ext2 serial switchoff textlcd singlecore legacykernel usbconsole wlan modutils-spiderbox"
 DISTRO_FEATURES_append += "libsigc2"
 
 DVBMEDIASINK_CONFIG = "--with-wma --with-wmv --with-pcm --with-eac3"
@@ -55,7 +56,9 @@ MACHINE_EXTRA_RRECOMMENDS += "\
 MACHINE_ESSENTIAL_EXTRA_RDEPENDS += "\
     stlirc \
     stlinux24-sh4-stx7109-fdma-firmware \
-    firmware-sh4-spiderbox \
+    libmme-host \
+    libmme-image \
+    firmware-sh4 \
     stslave-fw \
     ustslave \
     stfbcontrol \

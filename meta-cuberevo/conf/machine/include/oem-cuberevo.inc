@@ -4,6 +4,7 @@ require conf/machine/include/wifi-sh4.inc
 
 BRAND_OEM = "cuberevo"
 
+IMAGEDIR ?= "enigma2"
 IMAGE_FSTYPES += "tar.gz"
 
 AUDIOELF = "audio_7100.elf"
@@ -38,7 +39,7 @@ SERIAL_CONSOLE = "115200 ttyAS0"
 
 DVBPROVIDER = "kernel"
 
-MACHINE_FEATURES += "ext2 serial switchoff textlcd singlecore legacykernel usbconsole wlan"
+MACHINE_FEATURES += "ext2 serial switchoff textlcd singlecore legacykernel usbconsole wlan modutils-cuberevo"
 DISTRO_FEATURES_append += "libsigc2"
 
 DVBMEDIASINK_CONFIG = "--with-wma --with-wmv --with-pcm --with-eac3"
@@ -57,8 +58,10 @@ MACHINE_EXTRA_RRECOMMENDS += "\
     "
 MACHINE_ESSENTIAL_EXTRA_RDEPENDS += "\
     stlinux24-sh4-stx7109-fdma-firmware \
-    firmware-sh4-${BRAND_OEM} \
+    firmware-sh4 \
     evremote2 \
+    libmme-host \
+    libmme-image \
     stslave-fw \
     ustslave \
     stfbcontrol \
@@ -74,8 +77,6 @@ EXTRA_IMAGEDEPENDS += "\
 MACHINE_EXTRA_RDEPENDS += "\
     libpcre \
     "
-
-MACHINE_FEATURES += "modutils-cuberevo"
 
 include conf/machine/include/autoload-filesystems.inc
 require conf/machine/include/tune-sh4.inc
