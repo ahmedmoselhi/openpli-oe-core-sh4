@@ -127,10 +127,10 @@
  
 +void pNotification(int iconOn)
 +{
-+	struct proton_ioctl_data vfd_data;
++	struct aotom_ioctl_data vfd_data;
 +	int ioctl_fd = -1;
 +
-+	ioctl_fd = open("/dev/vfd", O_RDONLY);
++	ioctl_fd = open("/dev/dbox/oled0", O_RDONLY);
 +	vfd_data.u.icon.on = iconOn;
 +	vfd_data.u.icon.icon_nr = 35;
 +	ioctl(ioctl_fd, VFDICONDISPLAYONOFF, &vfd_data);
@@ -247,7 +247,7 @@
 +	char time[5];
 +};
 +
-+struct proton_ioctl_data {
++struct aotom_ioctl_data {
 +	union
 +	{
 +		struct set_icon_s icon;
