@@ -14,9 +14,7 @@ OPTIONAL_PACKAGES_remove_sh4 += "\
 	gdb \
 	nodejs \
 	rclone \
-	rtl8188eu \
 	rtl8189es \
-	rtl8192eu \
 	rtl8723bu \
 	rtl8812au \
 	rtl8814au \

@@ -1,6 +1,8 @@
+diff --git a/include/ieee80211.h b/include/ieee80211.h
+index e283a5f..62eac42 100755
 --- a/include/ieee80211.h
 +++ b/include/ieee80211.h
-@@ -1314,18 +1314,18 @@ enum ieee80211_state {
+@@ -1194,18 +1194,18 @@ enum ieee80211_state {
  (((Addr[2]) & 0xff) == 0xff) && (((Addr[3]) & 0xff) == 0xff) && (((Addr[4]) & 0xff) == 0xff) && \
  (((Addr[5]) & 0xff) == 0xff))
  #else
