@@ -12,6 +12,9 @@ VIDEOELF = "video_7109.elf"
 
 SOC_FAMILY = "sti7109"
 
+DVB1FIRMWARE = "dvb-fe-avl2108.fw"
+DVB2FIRMWARE = "dvb-fe-stv6306.fw"
+
 KERNEL_MODULE_PACKAGE_SUFFIX = ""
 
 MACHINE_KERNEL_PR = "r1"
@@ -22,7 +25,7 @@ DEFAULTTUNE = "sh4"
 GLIBCVERSION = "2.23"
 GCCVERSION = "4.9.4"
 
-PREFERRED_PROVIDER_virtual/kernel = "linux-spiderbox"
+PREFERRED_PROVIDER_virtual/kernel = "linux-${BRAND_OEM}"
 PREFERRED_VERSION_linux-libc-headers = "2.6.32"
 OLDEST_KERNEL = "2.6.32"
 PREFERRED_VERSION_rt8812au = "4.3.14"
@@ -36,7 +39,7 @@ SERIAL_CONSOLE = "115200 ttyAS0"
 
 DVBPROVIDER = "kernel"
 
-MACHINE_FEATURES += "ext2 serial switchoff textlcd singlecore legacykernel usbconsole wlan modutils-spiderbox"
+MACHINE_FEATURES += "ext2 serial switchoff textlcd singlecore legacykernel usbconsole wlan modutils-${BRAND_OEM} spiderbox"
 DISTRO_FEATURES_append += "libsigc2"
 
 DVBMEDIASINK_CONFIG = "--with-wma --with-wmv --with-pcm --with-eac3"
@@ -56,15 +59,15 @@ MACHINE_EXTRA_RRECOMMENDS += "\
 MACHINE_ESSENTIAL_EXTRA_RDEPENDS += "\
     stlirc \
     stlinux24-sh4-stx7109-fdma-firmware \
+    firmware-sh4 \
     libmme-host \
     libmme-image \
-    firmware-sh4 \
     stslave-fw \
     ustslave \
     stfbcontrol \
     fp-control \
     stinit \
-    spiderbox-dvb-modules \
+    ${BRAND_OEM}-dvb-modules \
     "
 
 EXTRA_IMAGEDEPENDS += "\

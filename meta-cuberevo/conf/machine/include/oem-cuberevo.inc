@@ -39,7 +39,7 @@ SERIAL_CONSOLE = "115200 ttyAS0"
 
 DVBPROVIDER = "kernel"
 
-MACHINE_FEATURES += "ext2 serial switchoff textlcd singlecore legacykernel usbconsole wlan modutils-cuberevo"
+MACHINE_FEATURES += "ext2 serial switchoff textlcd singlecore legacykernel usbconsole wlan modutils-${BRAND_OEM} cuberevo"
 DISTRO_FEATURES_append += "libsigc2"
 
 DVBMEDIASINK_CONFIG = "--with-wma --with-wmv --with-pcm --with-eac3"
@@ -54,12 +54,12 @@ IMAGE_CMD_tar_prepend = "\
 
 MACHINE_EXTRA_RRECOMMENDS += "\
     enigma2-plugin-systemplugins-serviceapp \
-    ntfs-3g \
     "
+
 MACHINE_ESSENTIAL_EXTRA_RDEPENDS += "\
+    evremote2 \
     stlinux24-sh4-stx7109-fdma-firmware \
     firmware-sh4 \
-    evremote2 \
     libmme-host \
     libmme-image \
     stslave-fw \
