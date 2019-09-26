@@ -127,11 +127,4 @@ do_install() {
 	find ${D} -name stmcore-display-sti7106.ko | xargs -r rm # we don't have a 7106 chip
 }
 
-PACKAGESPLITFUNCS_append = " handle_driver_rename "
-
-python handle_driver_rename () {
-    d.setVar("RPROVIDES_cuberevo-dvb-modules", "cuberevo-dvb-modules")
-    d.setVar("RREPLACES_cuberevo-dvb-modules", "cuberevo-dvb-modules")
-    d.setVar("RCONFLICTS_cuberevo-dvb-modules", "cuberevo-dvb-modules")
-}
 FILES_${PN}-dev += "${includedir}"
