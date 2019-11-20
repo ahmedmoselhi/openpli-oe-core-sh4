@@ -4,7 +4,6 @@ WIFI_DRIVERS = " \
 	firmware-carl9170 \
 	firmware-htc7010 \
 	firmware-htc9271 \
-	firmware-mt7601u \
 	firmware-rt2870 \
 	firmware-rt73 \
 	firmware-rtl8712u \
@@ -15,9 +14,7 @@ WIFI_DRIVERS = " \
 	kernel-module-8192eu \
 	kernel-module-ath9k-htc \
 	kernel-module-carl9170 \
-	kernel-module-mt7601u \
 	kernel-module-r8712u \
-	kernel-module-r8188eu \
 	kernel-module-rt2500usb \
 	kernel-module-rt2800usb \
 	kernel-module-rt73usb \
