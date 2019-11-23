@@ -14,10 +14,11 @@ OPTIONAL_PACKAGES_remove_sh4 += "\
 	gdb \
 	nodejs \
 	rclone \
-	rtl8189es \
-	rtl8723bu \
-	rtl8812au \
-	rtl8814au \
-	rtl8822bu \
+	kernel-module-8189es \
+	kernel-module-8723bu \
+	kernel-module-8812au \
+	kernel-module-8814au \
+	kernel-module-mt7610u \
+	kernel-module-rtl8822bu \
 	zerotier \
 	"
