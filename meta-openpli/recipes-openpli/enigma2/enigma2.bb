@@ -16,9 +16,9 @@ DEPENDS = " \
 	tuxtxt-enigma2 \
 	"
 
-# SoftcamSetup is integrated now
-RREPLACES_${PN} = "enigma2-plugin-pli-softcamsetup"
-RCONFLICTS_${PN} = "enigma2-plugin-pli-softcamsetup"
+# SoftcamSetup and SkinSelector is integrated now
+RREPLACES_${PN} = "enigma2-plugin-pli-softcamsetup enigma2-plugin-systemplugins-skinselector"
+RCONFLICTS_${PN} = "enigma2-plugin-pli-softcamsetup enigma2-plugin-systemplugins-skinselector"
 
 RDEPENDS_${PN} = " \
 	alsa-conf \
@@ -38,15 +38,16 @@ RRECOMMENDS_${PN} = " \
 	"
 
 PYTHON_RDEPS = " \
-	python-numbers \
 	python-codecs \
 	python-core \
 	python-crypt \
 	python-fcntl \
 	python-importlib \
 	python-lang \
+	python-mmap \
 	python-netclient \
 	python-netserver \
+	python-numbers \
 	python-pickle \
 	python-re \
 	python-shell \
@@ -76,7 +77,6 @@ DESCRIPTION_append_enigma2-plugin-extensions-pictureplayer = "displays photos on
 DESCRIPTION_append_enigma2-plugin-systemplugins-positionersetup = "helps you installing a motorized dish."
 DESCRIPTION_append_enigma2-plugin-systemplugins-satelliteequipmentcontrol = "allows you to fine-tune DiSEqC-settings."
 DESCRIPTION_append_enigma2-plugin-systemplugins-satfinder = "helps you to align your dish."
-DESCRIPTION_append_enigma2-plugin-systemplugins-skinselector = "shows a menu with selectable skins."
 DESCRIPTION_append_enigma2-plugin-systemplugins-videomode = "selects advanced video modes"
 DESCRIPTION_append_enigma2-plugin-systemplugins-wirelesslan = "helps you configuring your wireless lan"
 DESCRIPTION_append_enigma2-plugin-systemplugins-networkwizard = "provides easy step by step network configuration"
