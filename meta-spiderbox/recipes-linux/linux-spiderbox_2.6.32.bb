@@ -42,8 +42,8 @@ SRC_URI = "https://github.com/OpenVisionE2/linux-sh4-2.6.32.71/archive/stmicro.t
     file://linux-sh4-i2c-st40-pio_stm24_${STM_PATCH_STR}.patch \
 "
 
-SRC_URI[md5sum] = "3bc5f1e12a413e9426fe6d5824225b46"
-SRC_URI[sha256sum] = "d28ae0df471c29e8d13e992420ef035eb9ef2ec3443048b650e54a962c3bdd71"
+SRC_URI[md5sum] = "5384b2a96dbfa04c93a74720581d1276"
+SRC_URI[sha256sum] = "5a93a98cc466c6b5f3c1b65c9db7f2b6bb75f79b796c7dfe4f970457e8de8297"
 
 S = "${WORKDIR}/linux-sh4-2.6.32.71-stmicro"
 B = "${WORKDIR}/build"
