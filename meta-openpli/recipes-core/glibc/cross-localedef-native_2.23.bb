@@ -33,7 +33,10 @@ EGLIBCPATCHES = "\
            file://0022-eglibc-Resolve-__fpscr_values-on-SH4.patch \
            file://0023-eglibc-Install-PIC-archives.patch \
            file://0025-eglibc-Forward-port-cross-locale-generation-support.patch \
+           file://0025-Define-DUMMY_LOCALE_T-if-not-defined.patch \
+           file://add_missing_IOfwide.patch \
            file://locale_t_fix.patch \
+           file://archive-path.patch \
 "
 
 SRCREV_glibc ?= "e742928c1592b43db6809db4f39e67be151cdd27"
