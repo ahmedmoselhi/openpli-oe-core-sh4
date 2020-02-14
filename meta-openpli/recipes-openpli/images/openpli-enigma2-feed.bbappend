@@ -18,6 +18,7 @@ OPTIONAL_PACKAGES_remove_sh4 += "\
 	kernel-module-8723bu \
 	kernel-module-8812au \
 	kernel-module-8814au \
+	kernel-module-88x2bu \
 	kernel-module-mt7610u \
 	kernel-module-rtl8822bu \
 	zerotier \
