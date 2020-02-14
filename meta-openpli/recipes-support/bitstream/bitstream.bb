@@ -24,3 +24,4 @@ do_install_append() {
 	install -d ${D}${includedir}
 }
 
+CFLAGS_append_sh4 += " -std=gnu99"
