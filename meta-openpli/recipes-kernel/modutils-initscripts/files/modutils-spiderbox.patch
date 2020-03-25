@@ -1,5 +1,5 @@
---- a/modutils_old.sh	2019-01-19 23:48:04.389057000 +0300
-+++ b/modutils.sh	2019-01-25 23:25:20.822741492 +0300
+--- a/modutils_old.sh	2020-02-20 23:40:47.463544000 +0300
++++ b/modutils.sh	2020-03-23 18:51:41.381590425 +0300
 @@ -36,6 +36,7 @@
  		[ "$VERBOSE" != no ] && echo -n "$module "
  		eval "$LOAD_MODULE $module $args >/dev/null 2>&1"
@@ -8,21 +8,10 @@
  	done
  }
  
-@@ -49,4 +50,17 @@
+@@ -49,4 +50,6 @@
  done
  [ "$VERBOSE" != no ] && echo
  
 +echo "1" > /proc/sys/kernel/printk #for more log change level or remake line
-+ 
-+NUM=`grep SwapTotal /proc/meminfo | sed 's/[^0-9]//g'`
-+if [ "$NUM" = 0 ]; then
-+	echo "Wait 1m." > /dev/dbox/oled0
-+	dd if=/dev/zero of=/swapfile bs=1024 count=131072
-+	mkswap /swapfile > /dev/null
-+	swapon /swapfile > /dev/null
-+	echo -e '/swapfile swap swap defaults 00' >> /etc/fstab
-+else
-+	echo "LOADING ENIGMA2" > /dev/dbox/oled0
-+fi
 +
  exit 0
