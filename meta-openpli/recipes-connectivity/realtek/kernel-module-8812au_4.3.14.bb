@@ -23,6 +23,8 @@ SRC_URI = " \
           file://rtl8812au-kernel-5.2.patch \
           file://rtl8812au-additional-vendor-ids.patch \
           "
+          
+SRC_URI_append_sh4 = "file://fix_sh4_build.patch"
 
 SRC_URI[md5sum] = "0f36c65f154971c3b305a1705f9e500f"
 SRC_URI[sha256sum] = "e1ab86b4aca9ee599141d2d23dd5c989e0a6d004c8b87a487b370e80a4aba7e2"
