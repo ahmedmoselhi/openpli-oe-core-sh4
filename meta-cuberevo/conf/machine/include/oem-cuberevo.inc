@@ -74,7 +74,6 @@ MACHINE_ESSENTIAL_EXTRA_RRECOMMENDS += "\
     firmware-mt7601u \
     kernel-module-rt5572sta \
     firmware-rt2870 \
-    kernel-module-r8812au \
     kernel-module-r8188eu \
     firmware-rtl8188eu \
     kernel-module-8192eu \
