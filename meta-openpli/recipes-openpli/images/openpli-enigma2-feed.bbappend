@@ -7,6 +7,7 @@ KERNEL_WIFI_DRIVERS_remove_sh4 += "\
 	kernel-module-rt2x00usb \
 	kernel-module-rt2x00lib \
 	kernel-module-rt73usb \
+	wireguard-tools \
 	"
 
 OPTIONAL_PACKAGES_remove_sh4 += "\
