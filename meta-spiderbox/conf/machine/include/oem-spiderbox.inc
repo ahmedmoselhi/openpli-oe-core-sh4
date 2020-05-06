@@ -1,6 +1,5 @@
 # We know about rtc
 include conf/machine/include/build-extras.inc
-require conf/machine/include/wifi-sh4.inc
 
 BRAND_OEM = "spiderbox"
 
@@ -28,7 +27,7 @@ GCCVERSION = "4.9.4"
 PREFERRED_PROVIDER_virtual/kernel = "linux-${BRAND_OEM}"
 PREFERRED_VERSION_linux-libc-headers = "2.6.32"
 OLDEST_KERNEL = "2.6.32"
-PREFERRED_VERSION_rt8812au = "4.3.14"
+PREFERRED_VERSION_8812au = "4.3.14"
 PREFERRED_VERSION_samba = "3.%"
 PREFERRED_PROVIDER_lirc = "stlirc"
 PREFERRED_PROVIDER_virtual/egl = "libstgles"
@@ -71,15 +70,13 @@ MACHINE_ESSENTIAL_EXTRA_RDEPENDS += "\
     "
 
 MACHINE_ESSENTIAL_EXTRA_RRECOMMENDS += "\
-    mt7601u \
+    kernel-module-mt7601usta \
     firmware-mt7601u \
-    rt3070 \
+    kernel-module-rt5572sta \
     firmware-rt2870 \
-    rtl8188eu \
+    kernel-module-r8188eu \
     firmware-rtl8188eu \
-    rtl8192cu \
-    firmware-rtl8192cu \
-    rtl8192eu \
+    kernel-module-8192eu \
     firmware-rtl8192eu \
     "
 
